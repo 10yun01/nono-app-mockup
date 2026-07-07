@@ -990,7 +990,14 @@ let stats = {
 };
 function favoritesCount(){ return products.filter(p=>p.favorited).length; }
 
-const levelTitles = ["새싹 교환러","초록 실천가","에코 루키","에코 히어로","지구 수호자","그린 마스터","순환경제 리더","지속가능 챔피언","에코 레전드","니옷내옷 명예의 전당"];
+// 10레벨 단위로 테마가 바뀌는 성장 단계 (나뭇잎→묘목→...→니옷내옷 레전드)
+// Lv.0~9=나뭇잎, Lv.10~19=묘목 은 명시적으로 지정받았고, 그 이후는 나무의 성장 흐름에
+// 맞춰 자연스럽게 이어지도록 구성함 [추측: 20레벨 이후 세부 명칭]
+const levelTiers = ["나뭇잎","묘목","어린나무","나무","큰나무","작은숲","울창한숲","숲지기","그린마스터","니옷내옷 레전드"];
+function tierTitle(level){
+  const tierIndex = Math.floor(level/10);
+  return levelTiers[Math.min(tierIndex, levelTiers.length-1)];
+}
 function computeXP(){
   // [샘플 공식] 실거래 가중치 위주 — 실제 서비스 정책이 아닌 목업용 경험치 산식입니다
   return stats.transactions*12 + stats.registered*10 + Math.round(stats.co2Saved);
@@ -998,11 +1005,11 @@ function computeXP(){
 function levelInfo(){
   if(currentUser && currentUser.isAdmin){
     // 운영자 계정은 항상 만렙(Lv.99)으로 고정
-    return { xp: 9999, level: 99, title: "운영자 (만렙)", xpIntoLevel: 50, remain: 0, percent: 100 };
+    return { xp: 9999, level: 99, title: tierTitle(99), xpIntoLevel: 50, remain: 0, percent: 100 };
   }
   const xp = computeXP();
   const level = Math.floor(xp/50)+1;
-  const title = levelTitles[Math.min(level-1, levelTitles.length-1)];
+  const title = tierTitle(level);
   const xpIntoLevel = xp % 50;
   const percent = Math.round(xpIntoLevel/50*100);
   return { xp, level, title, xpIntoLevel, remain: 50-xpIntoLevel, percent };
