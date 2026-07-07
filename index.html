@@ -942,7 +942,10 @@ function nav(id){
   saveSessionState();
 }
 function back(){
-  if(stack.length<2) return;
+  if(stack.length<2){
+    if(currentScreen() !== 'home'){ nav('home'); }
+    return;
+  }
   const cur = document.getElementById('screen-'+stack.pop());
   cur.classList.remove('active');
   const prev = document.getElementById('screen-'+currentScreen());
@@ -1472,7 +1475,7 @@ updateProgress();
     const targetId = saved.screen && document.getElementById('screen-'+saved.screen) ? saved.screen : 'home';
     document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
     document.getElementById('screen-'+targetId).classList.add('active');
-    stack = [targetId];
+    stack = targetId === 'home' ? ['home'] : ['home', targetId];
     updateProgress();
   }
   // else: no saved session -> app stays on its default initial screen (splash)
