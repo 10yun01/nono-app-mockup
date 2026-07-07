@@ -447,20 +447,26 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="top-spacer"></div>
     <div class="header" style="justify-content:space-between"><h1>마이페이지</h1><span style="cursor:pointer" onclick="nav('settings')">⚙</span></div>
     <div class="content">
-      <div class="card" style="display:flex;gap:14px;align-items:center;background:var(--pale)">
-        <div style="width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:26px">🙂</div>
-        <div><div style="font-weight:700;font-size:15px" id="mypageUserName">김네옷 님</div><div style="font-size:11px;color:var(--green);margin-top:2px">Lv.4 에코 히어로</div></div>
+      <div class="card" style="background:var(--pale)">
+        <div style="display:flex;gap:14px;align-items:center">
+          <div style="width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:26px">🙂</div>
+          <div style="flex:1"><div style="font-weight:700;font-size:15px" id="mypageUserName">김네옷 님</div><div style="font-size:11px;color:var(--green);margin-top:2px" id="mypageLevelText">Lv.4 에코 히어로</div></div>
+        </div>
+        <div style="margin-top:10px">
+          <div style="height:6px;border-radius:3px;background:#fff;overflow:hidden"><div id="mypageLevelBar" style="height:100%;background:var(--green);width:0%"></div></div>
+          <div style="font-size:9px;color:var(--gray);margin-top:4px" id="mypageLevelSub">다음 레벨까지 0XP</div>
+        </div>
       </div>
       <div class="card" style="display:flex;justify-content:space-around;text-align:center;margin-top:14px">
-        <div><div style="font-size:10px;color:var(--gray)">거래 완료</div><div style="font-weight:700;color:var(--green)">12건</div></div>
+        <div><div style="font-size:10px;color:var(--gray)">거래 완료</div><div style="font-weight:700;color:var(--green)" id="mypageTradeCount">12건</div></div>
         <div><div style="font-size:10px;color:var(--gray)">에코 포인트</div><div style="font-weight:700;color:var(--green)" id="mypagePointsDisplay">1,250P</div></div>
         <div><div style="font-size:10px;color:var(--gray)">작성 후기</div><div style="font-weight:700;color:var(--green)">8개</div></div>
       </div>
       <div style="margin-top:10px">
-        <div class="list-row" onclick="nav('trade')"><div class="icon">📦</div><div class="text"><div class="title">나의 거래 내역</div><div class="sub">진행중 2건 · 완료 12건</div></div><div class="chev">></div></div>
-        <div class="list-row" onclick="nav('report')"><div class="icon">🌱</div><div class="text"><div class="title">환경 기여 리포트</div><div class="sub">누적 CO₂ 절감 18.7kg</div></div><div class="chev">></div></div>
-        <div class="list-row" onclick="nav('wish')"><div class="icon">❤️</div><div class="text"><div class="title">관심 상품</div><div class="sub">4개 저장됨</div></div><div class="chev">></div></div>
-        <div class="list-row" onclick="nav('badge')"><div class="icon">🏅</div><div class="text"><div class="title">보유 배지</div><div class="sub">4개 획득</div></div><div class="chev">></div></div>
+        <div class="list-row" onclick="nav('trade')"><div class="icon">📦</div><div class="text"><div class="title">나의 거래 내역</div><div class="sub" id="mypageTradeSub">진행중 2건 · 완료 12건</div></div><div class="chev">></div></div>
+        <div class="list-row" onclick="nav('report')"><div class="icon">🌱</div><div class="text"><div class="title">환경 기여 리포트</div><div class="sub" id="mypageCo2Sub">누적 CO₂ 절감 18.7kg</div></div><div class="chev">></div></div>
+        <div class="list-row" onclick="nav('wish')"><div class="icon">❤️</div><div class="text"><div class="title">관심 상품</div><div class="sub" id="mypageWishSub">4개 저장됨</div></div><div class="chev">></div></div>
+        <div class="list-row" onclick="nav('badge')"><div class="icon">🏅</div><div class="text"><div class="title">보유 배지</div><div class="sub" id="mypageBadgeSub">4개 획득</div></div><div class="chev">></div></div>
         <div class="list-row" onclick="nav('notif')"><div class="icon">🔔</div><div class="text"><div class="title">알림 설정</div></div><div class="chev">></div></div>
         <div class="list-row" onclick="nav('support')"><div class="icon">💬</div><div class="text"><div class="title">고객센터</div></div><div class="chev">></div></div>
         <div class="list-row" onclick="showLogout()" style="border-bottom:none"><div class="icon">🚪</div><div class="text"><div class="title">로그아웃</div></div><div class="chev">></div></div>
@@ -575,13 +581,30 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="top-spacer"></div>
     <div class="header"><span class="back" onclick="back()">←</span><h1>보유 배지</h1></div>
     <div class="content">
-      <p style="font-size:11px;color:var(--gray)">4개 획득 · 총 8개</p>
-      <div class="grid2">
-        <div class="card" style="text-align:center"><div style="font-size:28px">🌿</div><b style="font-size:12px">첫 교환</b><div style="font-size:9px;color:var(--gray)">첫 거래를 완료했어요</div></div>
-        <div class="card" style="text-align:center"><div style="font-size:28px">♻️</div><b style="font-size:12px">3회 달성</b><div style="font-size:9px;color:var(--gray)">3회 교환 달성</div></div>
-        <div class="card" style="text-align:center;background:var(--imggray)"><div style="font-size:28px">🔒</div><b style="font-size:12px;color:var(--gray)">10회 달성</b><div style="font-size:9px;color:var(--gray)">10회 교환 시 획득</div></div>
-        <div class="card" style="text-align:center;background:var(--imggray)"><div style="font-size:28px">🔒</div><b style="font-size:12px;color:var(--gray)">나무 지킴이</b><div style="font-size:9px;color:var(--gray)">CO₂ 50kg 절감 시 획득</div></div>
+      <p style="font-size:11px;color:var(--gray)" id="badgeCountText">0개 획득 · 총 0개</p>
+      <div class="grid2" id="badgeGrid"></div>
+    </div>
+  </div>
+
+  <!-- ============ ENVIRONMENTAL CONTRIBUTION REPORT ============ -->
+  <div class="screen" id="screen-report">
+    <div class="top-spacer"></div>
+    <div class="header"><span class="back" onclick="back()">←</span><h1>환경 기여 리포트</h1></div>
+    <div class="content">
+      <div class="card" style="background:var(--pale);text-align:center">
+        <div style="font-size:11px;color:var(--gray)" id="reportLevelSub">Lv.4 에코 히어로</div>
+        <div style="font-size:32px;font-weight:700;color:var(--green);margin:6px 0" id="reportCo2Big">18.7kg</div>
+        <div style="font-size:10px;color:var(--gray)">누적 CO₂ 절감량</div>
+        <div style="margin-top:12px;height:6px;border-radius:3px;background:#fff;overflow:hidden"><div id="reportLevelBar" style="height:100%;background:var(--green);width:0%"></div></div>
+        <div style="font-size:9px;color:var(--gray);margin-top:4px" id="reportLevelSub2">다음 레벨까지 0XP</div>
       </div>
+      <div class="card" style="display:flex;justify-content:space-around;text-align:center;margin-top:14px">
+        <div><div style="font-size:10px;color:var(--gray)">거래 완료</div><div style="font-weight:700;color:var(--green)" id="reportTradeCount">12건</div></div>
+        <div><div style="font-size:10px;color:var(--gray)">등록 상품</div><div style="font-weight:700;color:var(--green)" id="reportRegisteredCount">0개</div></div>
+        <div><div style="font-size:10px;color:var(--gray)">보유 배지</div><div style="font-weight:700;color:var(--green)" id="reportBadgeCount">0개</div></div>
+      </div>
+      <h2 class="section">CO₂ 절감 안내</h2>
+      <p style="font-size:11px;color:var(--gray);line-height:1.7">거래 1건당 약 2.3kg의 CO₂ 절감 효과가 있는 것으로 추정돼요.<br>* 샘플 데이터(실측 아님) — 실제 탄소 절감량은 상품군에 따라 달라질 수 있습니다.</p>
     </div>
   </div>
 
@@ -775,6 +798,7 @@ function toggleFavorite(id){
   }
   toast(p.favorited ? '관심 상품에 추가했어요 ❤️' : '관심 상품에서 제거했어요');
   renderGrids(); // keep wishlist screen in sync
+  updateProgress();
 }
 
 function renderChatList(){
@@ -921,6 +945,87 @@ function hideWithdraw(){ document.getElementById('withdrawOverlay').classList.re
 
 // ---- Point-based exchange request (with real available-points check) ----
 let myPoints = 1250;
+// ---- Level & Achievement system ----
+// Baseline stats represent "existing history" before this session (샘플 데이터, matches
+// the app's original static display values so nothing jumps inconsistently on load).
+let stats = {
+  transactions: 12,   // matches original "거래 완료 12건" baseline
+  registered: 0,       // no prior registrations baked in — grows only from real actions
+  co2Saved: 18.7,      // matches original "누적 CO₂ 절감 18.7kg" baseline
+};
+function favoritesCount(){ return products.filter(p=>p.favorited).length; }
+
+const levelTitles = ["새싹 교환러","초록 실천가","에코 루키","에코 히어로","지구 수호자","그린 마스터","순환경제 리더","지속가능 챔피언","에코 레전드","니옷내옷 명예의 전당"];
+function computeXP(){
+  // [샘플 공식] 실거래 가중치 위주 — 실제 서비스 정책이 아닌 목업용 경험치 산식입니다
+  return stats.transactions*12 + stats.registered*10 + Math.round(stats.co2Saved);
+}
+function levelInfo(){
+  const xp = computeXP();
+  const level = Math.floor(xp/50)+1;
+  const title = levelTitles[Math.min(level-1, levelTitles.length-1)];
+  const xpIntoLevel = xp % 50;
+  const percent = Math.round(xpIntoLevel/50*100);
+  return { xp, level, title, xpIntoLevel, remain: 50-xpIntoLevel, percent };
+}
+let lastKnownLevel = null;
+function renderLevel(){
+  const info = levelInfo();
+  if(lastKnownLevel !== null && info.level > lastKnownLevel){
+    toast(`🎉 레벨업! Lv.${info.level} ${info.title}`);
+  }
+  lastKnownLevel = info.level;
+
+  const levelText = `Lv.${info.level} ${info.title}`;
+  const sub = `다음 레벨까지 ${info.remain}XP`;
+  const setIfExists = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
+  const setWidthIfExists = (id, pct) => { const el = document.getElementById(id); if(el) el.style.width = pct+'%'; };
+
+  setIfExists('mypageLevelText', levelText);
+  setIfExists('mypageLevelSub', sub);
+  setWidthIfExists('mypageLevelBar', info.percent);
+
+  setIfExists('reportLevelSub', levelText);
+  setIfExists('reportLevelSub2', sub);
+  setWidthIfExists('reportLevelBar', info.percent);
+  setIfExists('reportCo2Big', stats.co2Saved.toFixed(1)+'kg');
+  setIfExists('reportTradeCount', stats.transactions+'건');
+  setIfExists('reportRegisteredCount', stats.registered+'개');
+
+  setIfExists('mypageTradeCount', stats.transactions+'건');
+  setIfExists('mypageTradeSub', `진행중 2건 · 완료 ${stats.transactions}건`);
+  setIfExists('mypageCo2Sub', `누적 CO₂ 절감 ${stats.co2Saved.toFixed(1)}kg`);
+  setIfExists('mypageWishSub', `${favoritesCount()}개 저장됨`);
+}
+
+const achievements = [
+  {icon:"🌿", name:"첫 교환", desc:"첫 거래를 완료했어요", check: s=>s.transactions>=1},
+  {icon:"♻️", name:"3회 달성", desc:"3회 교환 달성", check: s=>s.transactions>=3},
+  {icon:"🔥", name:"10회 달성", desc:"10회 교환 달성", check: s=>s.transactions>=10},
+  {icon:"🌳", name:"나무 지킴이", desc:"CO₂ 50kg 절감 시 획득", check: s=>s.co2Saved>=50},
+  {icon:"📦", name:"등록왕", desc:"상품 5개 이상 등록", check: s=>s.registered>=5},
+  {icon:"❤️", name:"애정 수집가", desc:"관심상품 5개 이상 찜", check: s=>favoritesCount()>=5},
+];
+function renderBadges(){
+  const grid = document.getElementById('badgeGrid');
+  if(!grid) return;
+  const unlocked = achievements.filter(a=>a.check(stats));
+  grid.innerHTML = achievements.map(a=>{
+    const on = a.check(stats);
+    return `<div class="card" style="text-align:center;${on?'':'background:var(--imggray)'}">
+      <div style="font-size:28px">${on?a.icon:'🔒'}</div>
+      <b style="font-size:12px;${on?'':'color:var(--gray)'}">${a.name}</b>
+      <div style="font-size:9px;color:var(--gray)">${a.desc}</div>
+    </div>`;
+  }).join('');
+  const countText = document.getElementById('badgeCountText');
+  if(countText) countText.textContent = `${unlocked.length}개 획득 · 총 ${achievements.length}개`;
+  const setIfExists = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
+  setIfExists('mypageBadgeSub', `${unlocked.length}개 획득`);
+  setIfExists('reportBadgeCount', unlocked.length+'개');
+}
+function updateProgress(){ renderLevel(); renderBadges(); }
+
 function renderPoints(){
   const formatted = myPoints.toLocaleString()+'P';
   const h = document.getElementById('homePointsDisplay'); if(h) h.textContent = '에코 포인트 '+formatted;
@@ -985,6 +1090,9 @@ function postExchangeMessageToSeller(p, userMsg, viaLabel){
     chats.unshift(c);
   }
   if(userMsg) c.messages.push({from:'me', text:userMsg});
+  stats.transactions += 1;
+  stats.co2Saved = +(stats.co2Saved + 2.3).toFixed(1); // [샘플 데이터] 거래 1건당 추정 절감량
+  updateProgress();
   c.messages.push({from:'system', text:`🔔 [${p.name}] ${viaLabel} 교환 신청을 보냈어요. 상대방의 수락을 기다려주세요.`});
   c.time = '방금';
   renderChatList();
@@ -1181,6 +1289,8 @@ function registerProduct(){
   };
   products.push(newProduct);
   renderGrids();
+  stats.registered += 1;
+  updateProgress();
 
   // reset form
   document.getElementById('regName').value='';
@@ -1301,6 +1411,7 @@ renderAvatarPicker();
 renderAddressList();
 renderLanguageList();
 renderPoints();
+updateProgress();
 
 // ---- Restore session on page load/refresh (persists login + last screen) ----
 (function restoreSession(){
