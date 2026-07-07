@@ -449,7 +449,7 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="content">
       <div class="card" style="background:var(--pale)">
         <div style="display:flex;gap:14px;align-items:center">
-          <div style="width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:26px">🙂</div>
+          <div style="width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:26px" id="mypageUserAvatar">🙂</div>
           <div style="flex:1"><div style="font-weight:700;font-size:15px" id="mypageUserName">김네옷 님</div><div style="font-size:11px;color:var(--green);margin-top:2px" id="mypageLevelText">Lv.4 에코 히어로</div></div>
         </div>
         <div style="margin-top:10px">
@@ -481,7 +481,7 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="header"><span class="back" onclick="back()">←</span><h1>설정</h1></div>
     <div class="content">
       <h2 class="section" style="margin-top:6px">계정</h2>
-      <div class="list-row" onclick="nav('profileEdit')"><div class="icon">🙂</div><div class="text"><div class="title">프로필 수정</div><div class="sub">이름, 프로필 사진 변경</div></div><div class="chev">></div></div>
+      <div class="list-row" onclick="goToProfileEdit()"><div class="icon">🙂</div><div class="text"><div class="title">프로필 수정</div><div class="sub">이름, 프로필 사진 변경</div></div><div class="chev">></div></div>
       <div class="list-row" onclick="nav('passwordChange')"><div class="icon">🔑</div><div class="text"><div class="title">비밀번호 변경</div></div><div class="chev">></div></div>
       <div class="list-row" onclick="nav('address')"><div class="icon">📍</div><div class="text"><div class="title">주소 관리</div><div class="sub" id="settingsAddressSub">서울 강남구 역삼동</div></div><div class="chev">></div></div>
 
@@ -897,9 +897,12 @@ function clearSession(){
   try{ localStorage.removeItem(AUTH_KEY); }catch(e){}
 }
 function completeLogin(user){
+  if(!user.avatar) user.avatar = '🙂';
   currentUser = user;
   const nameEl = document.getElementById('mypageUserName');
   if(nameEl) nameEl.textContent = user.name + '님';
+  const avatarEl = document.getElementById('mypageUserAvatar');
+  if(avatarEl) avatarEl.textContent = user.avatar;
   toast(`${user.name}님 환영합니다 🌱`);
   stack = ['home'];
   document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
@@ -995,6 +998,7 @@ function favoritesCount(){ return products.filter(p=>p.favorited).length; }
 // 맞춰 자연스럽게 이어지도록 구성함 [추측: 20레벨 이후 세부 명칭]
 const levelTiers = ["나뭇잎","묘목","어린나무","나무","큰나무","작은숲","울창한숲","숲지기","그린마스터","니옷내옷 레전드"];
 function tierTitle(level){
+  if(level === 99) return "데미갓"; // Lv.99 전용 특별 칭호
   const tierIndex = Math.floor(level/10);
   return levelTiers[Math.min(tierIndex, levelTiers.length-1)];
 }
@@ -1084,6 +1088,16 @@ function renderBadges(){
 }
 function updateProgress(){ renderLevel(); renderBadges(); }
 
+function goToProfileEdit(){
+  if(currentUser){
+    document.getElementById('profileNameInput').value = currentUser.name || '';
+    document.getElementById('profileBioInput').value = currentUser.bio || '';
+    selectedAvatar = currentUser.avatar || '🙂';
+    document.getElementById('profileAvatarPreview').textContent = selectedAvatar;
+    renderAvatarPicker();
+  }
+  nav('profileEdit');
+}
 function goToSettings(){
   const panel = document.getElementById('adminPanel');
   const isAdminUser = !!(currentUser && currentUser.isAdmin);
@@ -1233,6 +1247,16 @@ function saveProfile(){
   const bio = document.getElementById('profileBioInput').value.trim();
   if(!name){ toast('이름을 입력해주세요'); return; }
   if(bio) stats.profileCompleted = true;
+  if(currentUser){
+    currentUser.name = name;
+    currentUser.avatar = selectedAvatar;
+    currentUser.bio = bio;
+  }
+  const nameEl = document.getElementById('mypageUserName');
+  if(nameEl) nameEl.textContent = name + '님';
+  const avatarEl = document.getElementById('mypageUserAvatar');
+  if(avatarEl) avatarEl.textContent = selectedAvatar;
+  saveSessionState();
   updateProgress();
   toast('프로필이 저장되었어요 🙂');
   setTimeout(back, 700);
@@ -1524,6 +1548,8 @@ updateProgress();
     currentUser = saved.user;
     const nameEl = document.getElementById('mypageUserName');
     if(nameEl) nameEl.textContent = currentUser.name + '님';
+    const avatarEl = document.getElementById('mypageUserAvatar');
+    if(avatarEl) avatarEl.textContent = currentUser.avatar || '🙂';
     const targetId = saved.screen && document.getElementById('screen-'+saved.screen) ? saved.screen : 'home';
     document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
     document.getElementById('screen-'+targetId).classList.add('active');
