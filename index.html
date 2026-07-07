@@ -449,7 +449,7 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="content">
       <div class="card" style="background:var(--pale)">
         <div style="display:flex;gap:14px;align-items:center">
-          <div style="width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:26px" id="mypageUserAvatar">🙂</div>
+          <div style="width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden" id="mypageUserAvatar">🙂</div>
           <div style="flex:1"><div style="font-weight:700;font-size:15px" id="mypageUserName">김네옷 님</div><div style="font-size:11px;color:var(--green);margin-top:2px" id="mypageLevelText">Lv.4 에코 히어로</div></div>
         </div>
         <div style="margin-top:10px">
@@ -518,8 +518,12 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="top-spacer"></div>
     <div class="header"><span class="back" onclick="back()">←</span><h1>프로필 수정</h1></div>
     <div class="content" style="text-align:center">
-      <div style="width:80px;height:80px;border-radius:50%;background:var(--pale);display:flex;align-items:center;justify-content:center;font-size:36px;margin:16px auto 4px" id="profileAvatarPreview">🙂</div>
-      <p style="font-size:11px;color:var(--gray);margin-bottom:16px">아이콘을 눌러 프로필 이모지를 바꿔보세요</p>
+      <div style="width:80px;height:80px;border-radius:50%;background:var(--pale);display:flex;align-items:center;justify-content:center;font-size:36px;margin:16px auto 4px;overflow:hidden;position:relative" id="profileAvatarPreview">🙂</div>
+      <label style="display:inline-block;margin:6px 0 4px;font-size:11px;color:var(--green);font-weight:700;cursor:pointer">
+        📷 사진으로 등록하기
+        <input type="file" accept="image/*" style="display:none" onchange="handleAvatarPhotoUpload(this)">
+      </label>
+      <p style="font-size:11px;color:var(--gray);margin-bottom:16px">또는 아이콘을 눌러 프로필 이모지를 바꿔보세요</p>
       <div class="grid6" id="avatarPicker" style="margin-top:0"></div>
       <label class="field-label" style="text-align:left">이름</label>
       <input type="text" id="profileNameInput" value="김네옷">
@@ -901,8 +905,7 @@ function completeLogin(user){
   currentUser = user;
   const nameEl = document.getElementById('mypageUserName');
   if(nameEl) nameEl.textContent = user.name + '님';
-  const avatarEl = document.getElementById('mypageUserAvatar');
-  if(avatarEl) avatarEl.textContent = user.avatar;
+  renderAvatarInto('mypageUserAvatar', user.avatar, user.avatarPhoto);
   toast(`${user.name}님 환영합니다 🌱`);
   stack = ['home'];
   document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
@@ -1093,7 +1096,8 @@ function goToProfileEdit(){
     document.getElementById('profileNameInput').value = currentUser.name || '';
     document.getElementById('profileBioInput').value = currentUser.bio || '';
     selectedAvatar = currentUser.avatar || '🙂';
-    document.getElementById('profileAvatarPreview').textContent = selectedAvatar;
+    selectedAvatarPhoto = currentUser.avatarPhoto || null;
+    renderAvatarInto('profileAvatarPreview', selectedAvatar, selectedAvatarPhoto);
     renderAvatarPicker();
   }
   nav('profileEdit');
@@ -1232,14 +1236,39 @@ function goToSplashReset(){
 // ---- Profile edit ----
 const avatarOptions = ['🙂','😎','🥰','🐱','🐶','🌱','⭐','🦊'];
 let selectedAvatar = '🙂';
+let selectedAvatarPhoto = null; // data URI of an uploaded profile photo, if any
+
+// Renders either the uploaded photo (priority) or the emoji into a target element
+function renderAvatarInto(elId, avatar, avatarPhoto){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  if(avatarPhoto){
+    el.innerHTML = `<img src="${avatarPhoto}" alt="프로필 사진" style="width:100%;height:100%;object-fit:cover" onerror="this.remove()">`;
+  } else {
+    el.textContent = avatar || '🙂';
+  }
+}
+function handleAvatarPhotoUpload(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    selectedAvatarPhoto = e.target.result;
+    renderAvatarInto('profileAvatarPreview', selectedAvatar, selectedAvatarPhoto);
+  };
+  reader.onerror = ()=>{ toast('사진을 불러오지 못했어요'); };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
 function renderAvatarPicker(){
   document.getElementById('avatarPicker').innerHTML = avatarOptions.map(e=>
-    `<div class="cat-item" onclick="selectAvatar('${e}')"><div class="circle" style="${e===selectedAvatar?'border:2px solid var(--green)':''}">${e}</div></div>`
+    `<div class="cat-item" onclick="selectAvatar('${e}')"><div class="circle" style="${e===selectedAvatar&&!selectedAvatarPhoto?'border:2px solid var(--green)':''}">${e}</div></div>`
   ).join('');
 }
 function selectAvatar(e){
   selectedAvatar = e;
-  document.getElementById('profileAvatarPreview').textContent = e;
+  selectedAvatarPhoto = null; // 이모지를 고르면 업로드했던 사진은 해제 (둘 중 하나만 사용)
+  renderAvatarInto('profileAvatarPreview', selectedAvatar, null);
   renderAvatarPicker();
 }
 function saveProfile(){
@@ -1250,12 +1279,12 @@ function saveProfile(){
   if(currentUser){
     currentUser.name = name;
     currentUser.avatar = selectedAvatar;
+    currentUser.avatarPhoto = selectedAvatarPhoto;
     currentUser.bio = bio;
   }
   const nameEl = document.getElementById('mypageUserName');
   if(nameEl) nameEl.textContent = name + '님';
-  const avatarEl = document.getElementById('mypageUserAvatar');
-  if(avatarEl) avatarEl.textContent = selectedAvatar;
+  renderAvatarInto('mypageUserAvatar', selectedAvatar, selectedAvatarPhoto);
   saveSessionState();
   updateProgress();
   toast('프로필이 저장되었어요 🙂');
@@ -1548,8 +1577,7 @@ updateProgress();
     currentUser = saved.user;
     const nameEl = document.getElementById('mypageUserName');
     if(nameEl) nameEl.textContent = currentUser.name + '님';
-    const avatarEl = document.getElementById('mypageUserAvatar');
-    if(avatarEl) avatarEl.textContent = currentUser.avatar || '🙂';
+    renderAvatarInto('mypageUserAvatar', currentUser.avatar, currentUser.avatarPhoto);
     const targetId = saved.screen && document.getElementById('screen-'+saved.screen) ? saved.screen : 'home';
     document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
     document.getElementById('screen-'+targetId).classList.add('active');
