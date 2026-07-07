@@ -275,9 +275,9 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
   <!-- ============ SEARCH ============ -->
   <div class="screen" id="screen-search">
     <div class="top-spacer"></div>
-    <div class="header"><span class="back" onclick="back()">←</span>
+    <div class="header"><span class="back" onclick="exitSearch()">←</span>
       <input type="text" id="searchInput" placeholder="검색어를 입력하세요" style="flex:1;border:1px solid var(--green);border-radius:20px;padding:9px 14px;font-size:12px;outline:none" oninput="onSearchInput()" onkeydown="if(event.key==='Enter')runSearch(this.value)">
-      <span class="action" onclick="back()">취소</span>
+      <span class="action" onclick="exitSearch()">취소</span>
     </div>
     <div class="content">
       <div id="searchDefaultState">
@@ -1856,6 +1856,12 @@ function onSearchInput(){
 function showSearchDefaultState(){
   document.getElementById('searchDefaultState').style.display = '';
   document.getElementById('searchResultsState').style.display = 'none';
+}
+function exitSearch(){
+  const input = document.getElementById('searchInput');
+  if(input) input.value = '';
+  showSearchDefaultState();
+  back();
 }
 function liveFilter(query){
   const q = query.trim().toLowerCase();
