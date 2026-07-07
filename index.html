@@ -658,7 +658,7 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
       <label class="field-label">문의 내용</label>
       <textarea id="supBody" maxlength="500" placeholder="불편사항이나 궁금한 점을 자유롭게 작성해주세요." oninput="updateSupCounter();updateSupportBtn()"></textarea>
       <div class="counter" id="supCounter">0 / 500</div>
-      <button class="btn" id="supBtn" style="margin-top:16px" disabled onclick="toast('문의가 등록되었어요 🌱'); document.getElementById('supTitle').value=''; document.getElementById('supBody').value=''; updateSupCounter(); updateSupportBtn();">문의 등록하기</button>
+      <button class="btn" id="supBtn" style="margin-top:16px" disabled onclick="submitSupportInquiry()">문의 등록하기</button>
     </div>
   </div>
 
@@ -1273,6 +1273,38 @@ function submitExchangeRequest(){
   showPendingModal();
 }
 // pushes the exchange-request notice (and optional personal message) into the seller's own chat thread
+function submitSupportInquiry(){
+  const title = document.getElementById('supTitle').value.trim();
+  const body = document.getElementById('supBody').value.trim();
+  if(!title || !body) return; // 버튼이 disabled 상태라 보통 여기 안 오지만 방어적으로 체크
+
+  let c = chats.find(x=>x.id==='admin');
+  if(!c){
+    const sellerInfo = sellers['admin'] || {name:"운영자", avatar:"👑"};
+    c = {
+      id: 'admin',
+      name: sellerInfo.name,
+      avatar: sellerInfo.avatar,
+      time: "방금",
+      badge: 0,
+      product: {emoji:"💬", name:"1:1 문의", price:"", status:"문의 접수"},
+      messages: []
+    };
+    chats.unshift(c);
+  }
+  c.messages.push({from:'me', text:`[${title}]\n${body}`});
+  c.messages.push({from:'system', text:'🔔 1:1 문의가 접수됐어요. 운영자가 확인 후 답변드릴게요.'});
+  c.time = '방금';
+  c.product.status = '문의 접수';
+  renderChatList();
+  if(currentChatId === 'admin') renderChatMessages(c);
+
+  document.getElementById('supTitle').value='';
+  document.getElementById('supBody').value='';
+  updateSupCounter();
+  updateSupportBtn();
+  toast('문의가 등록되었어요 🌱 채팅 탭에서 확인할 수 있어요');
+}
 function postExchangeMessageToSeller(p, userMsg, viaLabel){
   if(!p) return;
   const sellerId = p.seller || 'jiyeon'; // [추측] 판매자 매핑이 없는 상품은 기본 상대(지연)로 연결
