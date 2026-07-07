@@ -714,7 +714,7 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
       <div style="font-size:32px">🚪</div>
       <h2 style="font-size:15px;margin:10px 0 4px">로그아웃 하시겠어요?</h2>
       <p style="font-size:11px;color:var(--gray);margin-bottom:16px">다음에 다시 로그인하실 수 있어요.</p>
-      <div class="btn-row"><button class="btn outline" onclick="hideLogout()">취소</button><button class="btn" onclick="hideLogout();clearSession();goToSplashReset()">로그아웃</button></div>
+      <div class="btn-row"><button class="btn outline" onclick="hideLogout()">취소</button><button class="btn" onclick="hideLogout();logoutUser()">로그아웃</button></div>
     </div>
   </div>
 
@@ -896,6 +896,7 @@ function currentScreen(){ return stack[stack.length-1]; }
 // Uses localStorage since this app runs as a real hosted site (GitHub Pages),
 // not inside Claude's own artifact preview sandbox where storage APIs are blocked.
 const AUTH_KEY = 'nono_auth';
+const ADMIN_EMAIL = "s1mplegod"; // [보안 안내] 목업이라 평문 노출됨 — 실제 서비스에는 사용 불가
 let currentUser = null;
 
 function saveSessionState(){
@@ -903,17 +904,101 @@ function saveSessionState(){
   try{
     localStorage.setItem(AUTH_KEY, JSON.stringify({ user: currentUser, screen: currentScreen() }));
   }catch(e){ /* storage unavailable (e.g. private browsing) — fail silently, session just won't persist */ }
+  saveAccountData(currentUser.email); // keep this account's activity data up to date on every navigation
 }
 function clearSession(){
   currentUser = null;
   try{ localStorage.removeItem(AUTH_KEY); }catch(e){}
 }
+function logoutUser(){
+  if(currentUser) saveAccountData(currentUser.email); // 로그아웃 전 이 계정의 활동 데이터를 저장
+  clearSession();
+  goToSplashReset();
+}
+
+// ---- Per-account activity data (chats/stats/points/favorites/search) ----
+// Each account (regular or admin) keeps its own saved data, keyed by email,
+// so logging out and back in restores exactly where that account left off.
+const ACCOUNT_DATA_PREFIX = 'nono_data_';
+function saveAccountData(email){
+  if(!email) return;
+  const data = {
+    chats, stats, myPoints,
+    favorited: products.filter(p=>p.favorited).map(p=>p.id),
+    recentSearches
+  };
+  try{ localStorage.setItem(ACCOUNT_DATA_PREFIX+email, JSON.stringify(data)); }
+  catch(e){ /* storage unavailable — this account's activity just won't persist */ }
+}
+function loadAccountData(email){
+  let data = null;
+  try{ data = JSON.parse(localStorage.getItem(ACCOUNT_DATA_PREFIX+email) || 'null'); }
+  catch(e){ data = null; }
+  if(data){
+    chats = data.chats || [];
+    stats = Object.assign({transactions:0,registered:0,co2Saved:0,reviews:0,pointExchanges:0,profileCompleted:false,adminDealDone:false}, data.stats||{});
+    myPoints = typeof data.myPoints === 'number' ? data.myPoints : 0;
+    const favSet = new Set(data.favorited||[]);
+    products = productSeed.map(p=>({...p, favorited:favSet.has(p.id)}));
+    recentSearches = data.recentSearches || [];
+  } else {
+    // 이 계정으로는 처음 로그인 — 완전히 빈 상태에서 시작
+    chats = [];
+    stats = {transactions:0,registered:0,co2Saved:0,reviews:0,pointExchanges:0,profileCompleted:false,adminDealDone:false};
+    myPoints = 0;
+    products = productSeed.map(p=>({...p, favorited:false}));
+    recentSearches = [];
+  }
+  currentChatId = null;
+  lastKnownLevel = null;
+  if(email === ADMIN_EMAIL){
+    // 운영자는 자기 개인 채팅(비어있음) 위에, 모든 이용자의 1:1 문의를 상담원 수신함처럼 병합해서 본다
+    const inbox = loadAdminInbox();
+    Object.keys(inbox).forEach(submitterEmail=>{
+      const t = inbox[submitterEmail];
+      chats.unshift({
+        id: 'inquiry_'+submitterEmail,
+        name: t.name,
+        avatar: t.avatar || '🙂',
+        time: t.time || '방금',
+        badge: 0,
+        product: {emoji:'💬', name:'1:1 문의 (' + t.name + ')', price:'', status:'문의 접수'},
+        messages: t.messages
+      });
+    });
+  }
+  renderGrids();
+  renderChatList();
+  renderPoints();
+  updateProgress();
+  renderRecentChips();
+}
+function eraseAccountData(email){
+  if(!email) return;
+  try{ localStorage.removeItem(ACCOUNT_DATA_PREFIX+email); }catch(e){}
+}
+
+// ---- Shared admin inbox for 1:1 inquiries ----
+// Regular accounts' chat data is isolated per-account (loadAccountData above),
+// but a 1:1 inquiry needs to reach the operator regardless of who is logged in.
+// This small shared store bridges that: one thread per submitting user.
+const ADMIN_INBOX_KEY = 'nono_admin_inbox';
+function loadAdminInbox(){
+  try{ return JSON.parse(localStorage.getItem(ADMIN_INBOX_KEY) || '{}'); }
+  catch(e){ return {}; }
+}
+function saveAdminInbox(inbox){
+  try{ localStorage.setItem(ADMIN_INBOX_KEY, JSON.stringify(inbox)); }
+  catch(e){ /* storage unavailable — inquiry just won't reach the admin inbox */ }
+}
+
 function completeLogin(user){
   if(!user.avatar) user.avatar = '🙂';
   currentUser = user;
   const nameEl = document.getElementById('mypageUserName');
   if(nameEl) nameEl.textContent = user.name + '님';
   renderAvatarInto('mypageUserAvatar', user.avatar, user.avatarPhoto);
+  loadAccountData(user.email); // 이 계정에 저장된 활동 데이터 복원 (없으면 빈 상태)
   toast(`${user.name}님 환영합니다 🌱`);
   stack = ['home'];
   document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
@@ -942,11 +1027,18 @@ function submitEmailLogin(){
   if(!email || !pw){ err.textContent='이메일과 비밀번호를 모두 입력해주세요'; err.style.display='block'; return; }
   // 어드민 계정: 지정된 자격증명일 때만 관리자로 로그인
   // [보안 안내] 목업 특성상 자격증명이 클라이언트 코드에 그대로 노출되어 있어 실제 서비스에는 사용 불가
-  const ADMIN_EMAIL = "s1mplegod";
   const ADMIN_PW = "n@e4343e";
   if(email === ADMIN_EMAIL && pw === ADMIN_PW){
     err.style.display='none';
-    completeLogin({ name:"오호호", email, provider:"admin", isAdmin:true });
+    // 어드민도 일반 계정과 동일하게 registeredAccounts에 프로필을 저장/복원한다
+    // (이름·아바타·사진이 로그아웃 후에도 유지되도록)
+    let acct = registeredAccounts.find(a=>a.email===ADMIN_EMAIL);
+    if(!acct){
+      acct = { name:"오호호", email:ADMIN_EMAIL, password:ADMIN_PW, avatar:'🙂', avatarPhoto:null, bio:'', joinedAt:new Date().toISOString() };
+      registeredAccounts.push(acct);
+      saveAccounts();
+    }
+    completeLogin({ name:acct.name, email:acct.email, provider:"admin", isAdmin:true, avatar:acct.avatar, avatarPhoto:acct.avatarPhoto, bio:acct.bio });
     return;
   }
   // 존재하지 않는 계정으로는 로그인 불가 — 반드시 회원가입을 거친 계정이어야 함
@@ -969,21 +1061,6 @@ function checkSignupPw(){
   if(pw !== confirm){ msg.textContent='비밀번호가 일치하지 않아요'; msg.style.color='var(--red)'; btn.disabled = true; return; }
   msg.textContent='비밀번호가 일치해요 ✓'; msg.style.color='var(--green)'; btn.disabled = false;
 }
-function resetForNewSignup(){
-  // 신규 가입자는 기존 로그인 계정과 달리 모든 활동 데이터가 0에서 시작한다
-  products = productSeed.map(p=>({...p, favorited:false})); // 즐겨찾기 전체 초기화
-  chats = [];
-  currentChatId = null;
-  myPoints = 0; // 포인트 초기화
-  stats = { transactions:0, registered:0, co2Saved:0, reviews:0, pointExchanges:0, profileCompleted:false, adminDealDone:false }; // 레벨·거래 초기화
-  lastKnownLevel = null;
-  recentSearches = []; // 검색목록 초기화
-  renderGrids();
-  renderChatList();
-  renderPoints();
-  updateProgress();
-  renderRecentChips();
-}
 function submitSignup(){
   const name = document.getElementById('signupName').value.trim();
   const email = document.getElementById('signupEmail').value.trim();
@@ -995,8 +1072,7 @@ function submitSignup(){
   const newAccount = { name, email, password:pw, avatar:'🙂', avatarPhoto:null, bio:'', joinedAt: new Date().toISOString() };
   registeredAccounts.push(newAccount);
   saveAccounts();
-  resetForNewSignup();
-  completeLogin({ name, email, provider:"email", avatar:'🙂' });
+  completeLogin({ name, email, provider:"email", avatar:'🙂' }); // loadAccountData 안에서 신규 계정이라 빈 상태로 시작됨
 }
 
 function nav(id){
@@ -1228,6 +1304,7 @@ function resetAllData(){
   renderChatList();
   renderPoints();
   updateProgress();
+  if(currentUser) saveAccountData(currentUser.email);
   toast('테스트 데이터가 초기화됐어요 🔄');
 }
 
@@ -1303,6 +1380,17 @@ function submitSupportInquiry(){
   renderChatList();
   if(currentChatId === 'admin') renderChatMessages(c);
 
+  // 운영자 수신함에도 동일 내용 반영 (운영자 계정으로 로그인하면 채팅 탭에서 보임)
+  if(currentUser){
+    const inbox = loadAdminInbox();
+    const key = currentUser.email;
+    if(!inbox[key]) inbox[key] = { name: currentUser.name, avatar: currentUser.avatarPhoto ? '🙂' : (currentUser.avatar||'🙂'), messages: [] };
+    inbox[key].name = currentUser.name; // 이름이 바뀌었을 수도 있으니 최신화
+    inbox[key].messages.push({from:'them', text:`[${title}]\n${body}`});
+    inbox[key].time = '방금';
+    saveAdminInbox(inbox);
+  }
+
   document.getElementById('supTitle').value='';
   document.getElementById('supBody').value='';
   updateSupCounter();
@@ -1341,7 +1429,18 @@ function confirmWithdraw(){
   hideWithdraw();
   toast('회원 탈퇴가 완료되었습니다');
   setTimeout(()=>{
-    resetForNewSignup(); // 회원 탈퇴 시 모든 기록(거래·포인트·레벨·검색·즐겨찾기) 완전 말소
+    if(currentUser){
+      eraseAccountData(currentUser.email); // 저장된 활동 데이터(거래·포인트·레벨·검색·즐겨찾기) 완전 말소
+      registeredAccounts = registeredAccounts.filter(a=>a.email !== currentUser.email); // 가입 계정 목록에서도 제거
+      saveAccounts();
+    }
+    chats = [];
+    stats = {transactions:0, registered:0, co2Saved:0, reviews:0, pointExchanges:0, profileCompleted:false, adminDealDone:false};
+    myPoints = 0;
+    products = productSeed.map(p=>({...p, favorited:false}));
+    recentSearches = [];
+    currentChatId = null;
+    lastKnownLevel = null;
     clearSession();
     goToSplashReset();
   }, 900);
