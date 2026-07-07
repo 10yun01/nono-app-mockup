@@ -892,6 +892,7 @@ function completeLogin(user){
   stack = ['home'];
   document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-home').classList.add('active');
+  updateProgress();
   saveSessionState();
 }
 function mockLogin(provider){
@@ -909,7 +910,7 @@ function submitEmailLogin(){
   const ADMIN_EMAIL = "s1mplegod";
   const ADMIN_PW = "n@e4343e";
   if(email === ADMIN_EMAIL && pw === ADMIN_PW){
-    completeLogin({ name:"운영자", email, provider:"admin", isAdmin:true });
+    completeLogin({ name:"오호호", email, provider:"admin", isAdmin:true });
     return;
   }
   completeLogin({ name:"김네옷", email, provider:"email" });
@@ -1033,10 +1034,11 @@ const achievements = [
 function renderBadges(){
   const grid = document.getElementById('badgeGrid');
   if(!grid) return;
-  const unlocked = achievements.filter(a=>a.check(stats));
+  const isAdminUser = !!(currentUser && currentUser.isAdmin);
+  const unlocked = isAdminUser ? achievements : achievements.filter(a=>a.check(stats));
   grid.innerHTML = achievements.map(a=>{
-    const on = a.check(stats);
-    const isSecret = a.hidden && !on; // 히든 업적: 달성 전까지 흐릿하게 가려서 표시
+    const on = isAdminUser ? true : a.check(stats);
+    const isSecret = a.hidden && !on; // 히든 업적: 달성 전까지 흐릿하게 가려서 표시 (어드민은 항상 해제 상태)
     const nameHtml = isSecret ? `<span style="filter:blur(3px);opacity:0.55;user-select:none">${a.name}</span>` : a.name;
     const descHtml = isSecret ? `<span style="filter:blur(2px);opacity:0.5;user-select:none">${a.desc}</span>` : a.desc;
     return `<div class="card" style="text-align:center;${on?'':'background:var(--imggray)'}">
@@ -1471,6 +1473,7 @@ updateProgress();
     document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
     document.getElementById('screen-'+targetId).classList.add('active');
     stack = [targetId];
+    updateProgress();
   }
   // else: no saved session -> app stays on its default initial screen (splash)
 })();
