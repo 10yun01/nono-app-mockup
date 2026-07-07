@@ -509,6 +509,14 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
         <label class="field-label">작성 후기 (개)</label>
         <input type="number" id="adminReviewsInput" placeholder="예: 8">
         <button class="btn outline" style="margin-top:14px" onclick="applyAdminStats()">값 적용하기</button>
+
+        <h2 class="section">가입 계정 목록 <span style="font-weight:400;color:var(--gray)" id="accountListCount">(0명)</span></h2>
+        <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+          <div style="display:flex;background:var(--pale);font-size:10px;font-weight:700;color:var(--green);padding:8px 10px">
+            <div style="flex:2">이름</div><div style="flex:3">이메일</div><div style="flex:2">가입일시</div>
+          </div>
+          <div id="accountListRows"></div>
+        </div>
       </div>
 
       <button class="btn outline" style="margin-top:24px;color:var(--red);border-color:var(--red)" onclick="showWithdraw()">회원 탈퇴</button>
@@ -582,11 +590,8 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="top-spacer"></div>
     <div class="header"><span class="back" onclick="back()">←</span><h1>나의 거래 내역</h1></div>
     <div class="content">
-      <div><span class="chip active">진행중 2건</span><span class="chip">완료 12건</span></div>
-      <div class="list-row"><div class="icon">🧶</div><div class="text"><div class="title">민트 브이넥 니트 가디건</div><div class="sub">지연님 · 교환 신청중</div></div></div>
-      <div class="list-row"><div class="icon">🧥</div><div class="text"><div class="title">빈티지 워싱 데님 자켓</div><div class="sub">수민님 · 배송 준비중</div></div></div>
-      <div class="list-row"><div class="icon">👕</div><div class="text"><div class="title">베이직 코튼 후드티</div><div class="sub">하늘님 · 교환 완료</div></div></div>
-      <div class="list-row"><div class="icon">👟</div><div class="text"><div class="title">클래식 캔버스 스니커즈</div><div class="sub">준호님 · 교환 완료</div></div></div>
+      <div><span class="chip active" id="tradeTabOngoing" onclick="renderTradeList('ongoing')">진행중 0건</span><span class="chip" id="tradeTabDone" onclick="renderTradeList('done')">완료 0건</span></div>
+      <div id="tradeListRows"></div>
     </div>
   </div>
 
@@ -919,21 +924,39 @@ function mockLogin(provider){
   // [샘플 데이터] 실제 OAuth 연동이 아닌 목업용 즉시 로그인 처리입니다
   completeLogin({ name:"김네옷", email: provider+"_user@example.com", provider });
 }
+const ACCOUNTS_KEY = 'nono_accounts';
+let registeredAccounts = [];
+function loadAccounts(){
+  try{ registeredAccounts = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]'); }
+  catch(e){ registeredAccounts = []; }
+}
+function saveAccounts(){
+  try{ localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(registeredAccounts)); }
+  catch(e){ /* storage unavailable — accounts just won't survive a refresh */ }
+}
 function submitEmailLogin(){
   const email = document.getElementById('loginEmail').value.trim();
   const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
-  if(!email || !pw){ err.style.display='block'; return; }
-  err.style.display='none';
+  if(!email || !pw){ err.textContent='이메일과 비밀번호를 모두 입력해주세요'; err.style.display='block'; return; }
   // 어드민 계정: 지정된 자격증명일 때만 관리자로 로그인
   // [보안 안내] 목업 특성상 자격증명이 클라이언트 코드에 그대로 노출되어 있어 실제 서비스에는 사용 불가
   const ADMIN_EMAIL = "s1mplegod";
   const ADMIN_PW = "n@e4343e";
   if(email === ADMIN_EMAIL && pw === ADMIN_PW){
+    err.style.display='none';
     completeLogin({ name:"오호호", email, provider:"admin", isAdmin:true });
     return;
   }
-  completeLogin({ name:"김네옷", email, provider:"email" });
+  // 존재하지 않는 계정으로는 로그인 불가 — 반드시 회원가입을 거친 계정이어야 함
+  const account = registeredAccounts.find(a=>a.email===email && a.password===pw);
+  if(!account){
+    err.textContent = '등록되지 않은 계정이거나 이메일/비밀번호가 일치하지 않아요';
+    err.style.display='block';
+    return;
+  }
+  err.style.display='none';
+  completeLogin({ name:account.name, email:account.email, provider:"email", avatar:account.avatar, avatarPhoto:account.avatarPhoto, bio:account.bio });
 }
 function checkSignupPw(){
   const pw = document.getElementById('signupPw').value;
@@ -963,9 +986,16 @@ function resetForNewSignup(){
 function submitSignup(){
   const name = document.getElementById('signupName').value.trim();
   const email = document.getElementById('signupEmail').value.trim();
+  const pw = document.getElementById('signupPw').value.trim();
+  const pwConfirm = document.getElementById('signupPwConfirm').value.trim();
   if(!name || !email){ toast('이름과 이메일을 입력해주세요'); return; }
+  if(!pw || pw.length<8 || pw!==pwConfirm){ toast('비밀번호를 확인해주세요'); return; }
+  if(registeredAccounts.some(a=>a.email===email)){ toast('이미 가입된 이메일이에요'); return; }
+  const newAccount = { name, email, password:pw, avatar:'🙂', avatarPhoto:null, bio:'', joinedAt: new Date().toISOString() };
+  registeredAccounts.push(newAccount);
+  saveAccounts();
   resetForNewSignup();
-  completeLogin({ name, email, provider:"email" });
+  completeLogin({ name, email, provider:"email", avatar:'🙂' });
 }
 
 function nav(id){
@@ -999,15 +1029,15 @@ function showWithdraw(){ document.getElementById('withdrawOverlay').classList.ad
 function hideWithdraw(){ document.getElementById('withdrawOverlay').classList.remove('show'); }
 
 // ---- Point-based exchange request (with real available-points check) ----
-let myPoints = 1250;
+let myPoints = 0;
 // ---- Level & Achievement system ----
 // Baseline stats represent "existing history" before this session (샘플 데이터, matches
 // the app's original static display values so nothing jumps inconsistently on load).
 let stats = {
-  transactions: 12,   // matches original "거래 완료 12건" baseline
-  registered: 0,       // no prior registrations baked in — grows only from real actions
-  co2Saved: 18.7,      // matches original "누적 CO₂ 절감 18.7kg" baseline
-  reviews: 8,          // matches original "작성 후기 8개" baseline — admin-editable
+  transactions: 0,     // 요청에 따라 초기 샘플 이력 제거 — 신규 계정은 항상 0에서 시작
+  registered: 0,
+  co2Saved: 0,
+  reviews: 0,
   pointExchanges: 0,   // hidden-achievement tracker: 포인트로 교환 신청한 횟수
   profileCompleted: false, // hidden-achievement tracker: 이름+한줄소개 모두 저장했는지
   adminDealDone: false, // 히든 업적 트래커: 운영자(admin)와 거래를 성공했는지
@@ -1107,7 +1137,28 @@ function renderBadges(){
   setIfExists('mypageBadgeSub', `${unlocked.length}개 획득`);
   setIfExists('reportBadgeCount', unlocked.length+'개');
 }
-function updateProgress(){ renderLevel(); renderBadges(); }
+function renderTradeList(filter){
+  const ongoing = chats.filter(c=>c.product.status !== '교환 완료');
+  const done = chats.filter(c=>c.product.status === '교환 완료');
+  filter = filter || (document.getElementById('tradeTabOngoing')?.classList.contains('active') ? 'ongoing' : 'ongoing');
+  document.getElementById('tradeTabOngoing').textContent = `진행중 ${ongoing.length}건`;
+  document.getElementById('tradeTabDone').textContent = `완료 ${done.length}건`;
+  document.getElementById('tradeTabOngoing').classList.toggle('active', filter==='ongoing');
+  document.getElementById('tradeTabDone').classList.toggle('active', filter==='done');
+  const list = filter === 'done' ? done : ongoing;
+  const rows = document.getElementById('tradeListRows');
+  if(!rows) return;
+  rows.innerHTML = list.length ? list.map(c=>`
+    <div class="list-row"><div class="icon">${c.product.emoji}</div><div class="text"><div class="title">${c.product.name}</div><div class="sub">${c.name}님 · ${c.product.status}</div></div></div>
+  `).join('') : `<p style="text-align:center;color:var(--gray);font-size:12px;margin-top:60px">${filter==='done'?'완료된 거래가 없어요':'진행중인 거래가 없어요'}</p>`;
+  const mSub = document.getElementById('mypageTradeSub');
+  if(mSub) mSub.textContent = `진행중 ${ongoing.length}건 · 완료 ${done.length}건`;
+  const mCount = document.getElementById('mypageTradeCount');
+  if(mCount) mCount.textContent = (ongoing.length+done.length)+'건';
+  const rCount = document.getElementById('reportTradeCount');
+  if(rCount) rCount.textContent = (ongoing.length+done.length)+'건';
+}
+function updateProgress(){ renderLevel(); renderBadges(); renderTradeList(); }
 
 function goToProfileEdit(){
   if(currentUser){
@@ -1120,6 +1171,19 @@ function goToProfileEdit(){
   }
   nav('profileEdit');
 }
+function renderAccountList(){
+  const rows = document.getElementById('accountListRows');
+  const count = document.getElementById('accountListCount');
+  if(!rows) return;
+  if(count) count.textContent = `(${registeredAccounts.length}명)`;
+  rows.innerHTML = registeredAccounts.length ? registeredAccounts.map(a=>{
+    const joined = new Date(a.joinedAt);
+    const joinedStr = isNaN(joined) ? '-' : `${joined.getFullYear()}.${String(joined.getMonth()+1).padStart(2,'0')}.${String(joined.getDate()).padStart(2,'0')}`;
+    return `<div style="display:flex;font-size:10px;padding:8px 10px;border-top:1px solid var(--border)">
+      <div style="flex:2">${a.name}</div><div style="flex:3;word-break:break-all">${a.email}</div><div style="flex:2">${joinedStr}</div>
+    </div>`;
+  }).join('') : `<div style="padding:14px;text-align:center;font-size:10px;color:var(--gray)">가입한 계정이 없어요</div>`;
+}
 function goToSettings(){
   const panel = document.getElementById('adminPanel');
   const testTools = document.getElementById('testToolsSection');
@@ -1131,6 +1195,7 @@ function goToSettings(){
       document.getElementById('adminTransactionsInput').value = stats.transactions;
       document.getElementById('adminPointsInput').value = myPoints;
       document.getElementById('adminReviewsInput').value = stats.reviews;
+      renderAccountList();
     }
   }
   nav('settings');
@@ -1152,8 +1217,8 @@ function resetAllData(){
   products = productSeed.map(p=>({...p}));
   chats = [];
   currentChatId = null;
-  myPoints = 1250;
-  stats = { transactions:12, registered:0, co2Saved:18.7, reviews:8, pointExchanges:0, profileCompleted:false, adminDealDone:false };
+  myPoints = 0;
+  stats = { transactions:0, registered:0, co2Saved:0, reviews:0, pointExchanges:0, profileCompleted:false, adminDealDone:false };
   lastKnownLevel = null;
   renderGrids();
   renderChatList();
@@ -1305,6 +1370,8 @@ function saveProfile(){
     currentUser.avatar = selectedAvatar;
     currentUser.avatarPhoto = selectedAvatarPhoto;
     currentUser.bio = bio;
+    const acct = registeredAccounts.find(a=>a.email===currentUser.email);
+    if(acct){ acct.name=name; acct.avatar=selectedAvatar; acct.avatarPhoto=selectedAvatarPhoto; acct.bio=bio; saveAccounts(); }
   }
   const nameEl = document.getElementById('mypageUserName');
   if(nameEl) nameEl.textContent = name + '님';
@@ -1591,6 +1658,7 @@ renderAvatarPicker();
 renderAddressList();
 renderLanguageList();
 renderPoints();
+loadAccounts();
 updateProgress();
 
 // ---- Restore session on page load/refresh (persists login + last screen) ----
@@ -1618,6 +1686,7 @@ updateProgress();
           document.getElementById('adminTransactionsInput').value = stats.transactions;
           document.getElementById('adminPointsInput').value = myPoints;
           document.getElementById('adminReviewsInput').value = stats.reviews;
+          renderAccountList();
         }
       }
     }
