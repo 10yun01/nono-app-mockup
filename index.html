@@ -494,8 +494,10 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
       <div class="list-row" onclick="openLegal('privacy')"><div class="icon">🔒</div><div class="text"><div class="title">개인정보처리방침</div></div><div class="chev">></div></div>
       <div class="list-row" style="border-bottom:none;cursor:pointer" onclick="toast('최신 버전이에요 (v1.0.0)')"><div class="icon">ℹ️</div><div class="text"><div class="title">앱 버전 정보</div><div class="sub">v1.0.0</div></div></div>
 
-      <h2 class="section">테스트 도구</h2>
-      <div class="list-row" style="border-bottom:none;cursor:pointer" onclick="resetAllData()"><div class="icon">🔄</div><div class="text"><div class="title">테스트 데이터 초기화</div><div class="sub">등록 상품·포인트·레벨·채팅을 초기 상태로 되돌려요</div></div></div>
+      <div id="testToolsSection" style="display:none">
+        <h2 class="section">테스트 도구</h2>
+        <div class="list-row" style="border-bottom:none;cursor:pointer" onclick="resetAllData()"><div class="icon">🔄</div><div class="text"><div class="title">테스트 데이터 초기화</div><div class="sub">등록 상품·포인트·레벨·채팅을 초기 상태로 되돌려요</div></div></div>
+      </div>
 
       <div id="adminPanel" style="display:none">
         <h2 class="section">운영자 도구</h2>
@@ -1120,7 +1122,9 @@ function goToProfileEdit(){
 }
 function goToSettings(){
   const panel = document.getElementById('adminPanel');
+  const testTools = document.getElementById('testToolsSection');
   const isAdminUser = !!(currentUser && currentUser.isAdmin);
+  if(testTools) testTools.style.display = isAdminUser ? '' : 'none';
   if(panel){
     panel.style.display = isAdminUser ? '' : 'none';
     if(isAdminUser){
@@ -1235,7 +1239,11 @@ function postExchangeMessageToSeller(p, userMsg, viaLabel){
 function confirmWithdraw(){
   hideWithdraw();
   toast('회원 탈퇴가 완료되었습니다');
-  setTimeout(()=>{ clearSession(); goToSplashReset(); }, 900);
+  setTimeout(()=>{
+    resetForNewSignup(); // 회원 탈퇴 시 모든 기록(거래·포인트·레벨·검색·즐겨찾기) 완전 말소
+    clearSession();
+    goToSplashReset();
+  }, 900);
 }
 
 // correctly hides whatever screen is ACTUALLY active right now, then shows splash
@@ -1601,7 +1609,9 @@ updateProgress();
     updateProgress();
     if(targetId === 'settings'){
       const panel = document.getElementById('adminPanel');
+      const testTools = document.getElementById('testToolsSection');
       const isAdminUser = !!(currentUser && currentUser.isAdmin);
+      if(testTools) testTools.style.display = isAdminUser ? '' : 'none';
       if(panel){
         panel.style.display = isAdminUser ? '' : 'none';
         if(isAdminUser){
