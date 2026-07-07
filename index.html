@@ -943,10 +943,26 @@ function checkSignupPw(){
   if(pw !== confirm){ msg.textContent='비밀번호가 일치하지 않아요'; msg.style.color='var(--red)'; btn.disabled = true; return; }
   msg.textContent='비밀번호가 일치해요 ✓'; msg.style.color='var(--green)'; btn.disabled = false;
 }
+function resetForNewSignup(){
+  // 신규 가입자는 기존 로그인 계정과 달리 모든 활동 데이터가 0에서 시작한다
+  products = productSeed.map(p=>({...p, favorited:false})); // 즐겨찾기 전체 초기화
+  chats = [];
+  currentChatId = null;
+  myPoints = 0; // 포인트 초기화
+  stats = { transactions:0, registered:0, co2Saved:0, reviews:0, pointExchanges:0, profileCompleted:false, adminDealDone:false }; // 레벨·거래 초기화
+  lastKnownLevel = null;
+  recentSearches = []; // 검색목록 초기화
+  renderGrids();
+  renderChatList();
+  renderPoints();
+  updateProgress();
+  renderRecentChips();
+}
 function submitSignup(){
   const name = document.getElementById('signupName').value.trim();
   const email = document.getElementById('signupEmail').value.trim();
   if(!name || !email){ toast('이름과 이메일을 입력해주세요'); return; }
+  resetForNewSignup();
   completeLogin({ name, email, provider:"email" });
 }
 
