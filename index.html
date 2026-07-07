@@ -511,13 +511,20 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
         <button class="btn outline" style="margin-top:14px" onclick="applyAdminStats()">값 적용하기</button>
 
         <h2 class="section">가입 계정 목록 <span style="font-weight:400;color:var(--gray)" id="accountListCount">(0명)</span></h2>
-        <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
-          <div style="display:flex;background:var(--pale);font-size:9px;font-weight:700;color:var(--green);padding:6px 10px;position:sticky;top:0">
-            <div style="flex:2">이름</div><div style="flex:3">이메일</div><div style="flex:1.5">가입일</div>
-          </div>
-          <div id="accountListRows" style="max-height:180px;overflow-y:auto"></div>
+        <div id="accountListLocked">
+          <p style="font-size:9px;color:var(--gray);margin-bottom:8px">보안을 위해 운영자 비밀번호를 다시 입력하면 계정 목록이 표시돼요</p>
+          <input type="password" id="accountListPwInput" placeholder="운영자 비밀번호" onkeydown="if(event.key==='Enter')verifyAccountListPw()">
+          <button class="btn outline" style="margin-top:10px" onclick="verifyAccountListPw()">확인하고 보기</button>
         </div>
-        <p style="font-size:9px;color:var(--gray);margin-top:4px">최신 가입순 · 스크롤해서 더 보기</p>
+        <div id="accountListUnlocked" style="display:none">
+          <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+            <div style="display:flex;background:var(--pale);font-size:9px;font-weight:700;color:var(--green);padding:6px 10px;position:sticky;top:0">
+              <div style="flex:2">이름</div><div style="flex:3">이메일</div><div style="flex:1.5">가입일</div>
+            </div>
+            <div id="accountListRows" style="max-height:180px;overflow-y:auto"></div>
+          </div>
+          <p style="font-size:9px;color:var(--gray);margin-top:4px">최신 가입순 · 스크롤해서 더 보기</p>
+        </div>
       </div>
 
       <button class="btn outline" style="margin-top:24px;color:var(--red);border-color:var(--red)" onclick="showWithdraw()">회원 탈퇴</button>
@@ -897,6 +904,7 @@ function currentScreen(){ return stack[stack.length-1]; }
 // not inside Claude's own artifact preview sandbox where storage APIs are blocked.
 const AUTH_KEY = 'nono_auth';
 const ADMIN_EMAIL = "s1mplegod"; // [보안 안내] 목업이라 평문 노출됨 — 실제 서비스에는 사용 불가
+const ADMIN_PW = "n@e4343e";
 let currentUser = null;
 
 function saveSessionState(){
@@ -963,9 +971,21 @@ function loadAccountData(email){
         time: t.time || '방금',
         badge: 0,
         product: {emoji:'💬', name:'1:1 문의 (' + t.name + ')', price:'', status:'문의 접수'},
-        messages: t.messages
+        messages: convertInquiryMessages(t.messages, true)
       });
     });
+  } else {
+    // 일반 계정: 내가 남긴 1:1 문의(및 운영자의 답변)를 공용 수신함에서 최신 상태로 동기화
+    const inbox = loadAdminInbox();
+    const t = inbox[email];
+    if(t){
+      chats = chats.filter(c=>c.id!=='support');
+      chats.unshift({
+        id:'support', name:'운영자', avatar:'👑', time:t.time||'방금', badge:0,
+        product:{emoji:'💬', name:'1:1 문의', price:'', status:'문의 접수'},
+        messages: convertInquiryMessages(t.messages, false)
+      });
+    }
   }
   renderGrids();
   renderChatList();
@@ -1027,7 +1047,6 @@ function submitEmailLogin(){
   if(!email || !pw){ err.textContent='이메일과 비밀번호를 모두 입력해주세요'; err.style.display='block'; return; }
   // 어드민 계정: 지정된 자격증명일 때만 관리자로 로그인
   // [보안 안내] 목업 특성상 자격증명이 클라이언트 코드에 그대로 노출되어 있어 실제 서비스에는 사용 불가
-  const ADMIN_PW = "n@e4343e";
   if(email === ADMIN_EMAIL && pw === ADMIN_PW){
     err.style.display='none';
     // 어드민도 일반 계정과 동일하게 registeredAccounts에 프로필을 저장/복원한다
@@ -1214,9 +1233,11 @@ function renderBadges(){
   setIfExists('mypageBadgeSub', `${unlocked.length}개 획득`);
   setIfExists('reportBadgeCount', unlocked.length+'개');
 }
+function isInquiryChat(c){ return c.id === 'support' || c.id.startsWith('inquiry_'); }
 function renderTradeList(filter){
-  const ongoing = chats.filter(c=>c.product.status !== '교환 완료');
-  const done = chats.filter(c=>c.product.status === '교환 완료');
+  const realDeals = chats.filter(c=>!isInquiryChat(c));
+  const ongoing = realDeals.filter(c=>c.product.status !== '교환 완료');
+  const done = realDeals.filter(c=>c.product.status === '교환 완료');
   filter = filter || (document.getElementById('tradeTabOngoing')?.classList.contains('active') ? 'ongoing' : 'ongoing');
   document.getElementById('tradeTabOngoing').textContent = `진행중 ${ongoing.length}건`;
   document.getElementById('tradeTabDone').textContent = `완료 ${done.length}건`;
@@ -1275,10 +1296,25 @@ function goToSettings(){
       document.getElementById('adminTransactionsInput').value = stats.transactions;
       document.getElementById('adminPointsInput').value = myPoints;
       document.getElementById('adminReviewsInput').value = stats.reviews;
-      renderAccountList();
+      lockAccountList();
     }
   }
   nav('settings');
+}
+function lockAccountList(){
+  const locked = document.getElementById('accountListLocked');
+  const unlocked = document.getElementById('accountListUnlocked');
+  if(locked) locked.style.display = '';
+  if(unlocked) unlocked.style.display = 'none';
+  const pwInput = document.getElementById('accountListPwInput');
+  if(pwInput) pwInput.value = '';
+}
+function verifyAccountListPw(){
+  const pw = document.getElementById('accountListPwInput').value;
+  if(pw !== ADMIN_PW){ toast('비밀번호가 일치하지 않아요'); return; }
+  document.getElementById('accountListLocked').style.display = 'none';
+  document.getElementById('accountListUnlocked').style.display = '';
+  renderAccountList();
 }
 function applyAdminStats(){
   if(!(currentUser && currentUser.isAdmin)){ toast('운영자 계정에서만 사용할 수 있어요'); return; }
@@ -1354,42 +1390,44 @@ function submitExchangeRequest(){
   showPendingModal();
 }
 // pushes the exchange-request notice (and optional personal message) into the seller's own chat thread
+// Converts shared-inbox messages (tagged with sender:'customer'|'admin'|'system')
+// into the local from:'me'|'them'|'system' format, depending on who's viewing.
+function convertInquiryMessages(messages, viewerIsAdmin){
+  return (messages||[]).map(m=>{
+    if(m.sender==='system') return {from:'system', text:m.text};
+    const mine = viewerIsAdmin ? m.sender==='admin' : m.sender==='customer';
+    return {from: mine?'me':'them', text:m.text};
+  });
+}
+// Rebuilds the current (customer) user's own 'support' chat entry from the shared inbox
+function syncSupportChatForCustomer(){
+  if(!currentUser) return;
+  const inbox = loadAdminInbox();
+  const t = inbox[currentUser.email];
+  if(!t) return;
+  chats = chats.filter(x=>x.id!=='support');
+  chats.unshift({
+    id:'support', name:'운영자', avatar:'👑', time:t.time||'방금', badge:0,
+    product:{emoji:'💬', name:'1:1 문의', price:'', status:'문의 접수'},
+    messages: convertInquiryMessages(t.messages, false)
+  });
+  renderChatList();
+  if(currentChatId === 'support'){ const c = chats.find(x=>x.id==='support'); renderChatMessages(c); }
+}
 function submitSupportInquiry(){
   const title = document.getElementById('supTitle').value.trim();
   const body = document.getElementById('supBody').value.trim();
-  if(!title || !body) return; // 버튼이 disabled 상태라 보통 여기 안 오지만 방어적으로 체크
+  if(!title || !body || !currentUser) return; // 버튼이 disabled 상태라 보통 여기 안 오지만 방어적으로 체크
 
-  let c = chats.find(x=>x.id==='admin');
-  if(!c){
-    const sellerInfo = sellers['admin'] || {name:"운영자", avatar:"👑"};
-    c = {
-      id: 'admin',
-      name: sellerInfo.name,
-      avatar: sellerInfo.avatar,
-      time: "방금",
-      badge: 0,
-      product: {emoji:"💬", name:"1:1 문의", price:"", status:"문의 접수"},
-      messages: []
-    };
-    chats.unshift(c);
-  }
-  c.messages.push({from:'me', text:`[${title}]\n${body}`});
-  c.messages.push({from:'system', text:'🔔 1:1 문의가 접수됐어요. 운영자가 확인 후 답변드릴게요.'});
-  c.time = '방금';
-  c.product.status = '문의 접수';
-  renderChatList();
-  if(currentChatId === 'admin') renderChatMessages(c);
-
-  // 운영자 수신함에도 동일 내용 반영 (운영자 계정으로 로그인하면 채팅 탭에서 보임)
-  if(currentUser){
-    const inbox = loadAdminInbox();
-    const key = currentUser.email;
-    if(!inbox[key]) inbox[key] = { name: currentUser.name, avatar: currentUser.avatarPhoto ? '🙂' : (currentUser.avatar||'🙂'), messages: [] };
-    inbox[key].name = currentUser.name; // 이름이 바뀌었을 수도 있으니 최신화
-    inbox[key].messages.push({from:'them', text:`[${title}]\n${body}`});
-    inbox[key].time = '방금';
-    saveAdminInbox(inbox);
-  }
+  const inbox = loadAdminInbox();
+  const key = currentUser.email;
+  if(!inbox[key]) inbox[key] = { name: currentUser.name, avatar: '🙂', messages: [] };
+  inbox[key].name = currentUser.name; // 이름이 바뀌었을 수도 있으니 최신화
+  inbox[key].messages.push({sender:'customer', text:`[${title}]\n${body}`});
+  inbox[key].messages.push({sender:'system', text:'🔔 1:1 문의가 접수됐어요. 운영자가 확인 후 답변드릴게요.'});
+  inbox[key].time = '방금';
+  saveAdminInbox(inbox);
+  syncSupportChatForCustomer(); // 내 채팅 탭에 즉시 반영
 
   document.getElementById('supTitle').value='';
   document.getElementById('supBody').value='';
@@ -1696,12 +1734,30 @@ function sendMsg(){
   const input = document.getElementById('chatInput');
   if(!input.value.trim()) return;
   const c = chats.find(x=>x.id===currentChatId);
-  c.messages.push({from:"me", text: input.value});
+  const text = input.value;
+  c.messages.push({from:"me", text});
   renderChatMessages(c);
   renderChatList(); // keep chat-list preview text in sync
   input.value='';
   const content = document.querySelector('#screen-chatroom .content');
   content.scrollTop = content.scrollHeight;
+
+  // 1:1 문의 채팅이면, 상대방이 다음에 로그인했을 때도 보이도록 공용 수신함에 함께 기록
+  if(currentChatId === 'support' && currentUser){
+    const inbox = loadAdminInbox();
+    const key = currentUser.email;
+    if(!inbox[key]) inbox[key] = { name: currentUser.name, avatar:'🙂', messages: [] };
+    inbox[key].messages.push({sender:'customer', text});
+    inbox[key].time = '방금';
+    saveAdminInbox(inbox);
+  } else if(currentChatId && currentChatId.startsWith('inquiry_')){
+    const customerEmail = currentChatId.slice('inquiry_'.length);
+    const inbox = loadAdminInbox();
+    if(!inbox[customerEmail]) inbox[customerEmail] = { name:c.name, avatar:c.avatar, messages: [] };
+    inbox[customerEmail].messages.push({sender:'admin', text});
+    inbox[customerEmail].time = '방금';
+    saveAdminInbox(inbox);
+  }
 }
 document.getElementById('stars').addEventListener('click', e=>{
   if(e.target.tagName!=='SPAN') return;
@@ -1821,7 +1877,7 @@ updateProgress();
           document.getElementById('adminTransactionsInput').value = stats.transactions;
           document.getElementById('adminPointsInput').value = myPoints;
           document.getElementById('adminReviewsInput').value = stats.reviews;
-          renderAccountList();
+          lockAccountList();
         }
       }
     }
