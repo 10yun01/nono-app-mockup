@@ -709,6 +709,7 @@ const productSeed = [
   {id:"polo", emoji:"👕", name:"카라 넥 폴로 티셔츠", price:"70P", brand:"폴로 랄프로렌", size:"L", color:"스카이블루", category:"상의", seller:"haneul", desc:"클래식한 카라 넥 폴로 티셔츠예요. 캐주얼부터 세미정장까지 두루 활용 가능합니다."},
   {id:"pants", emoji:"👖", name:"와이드 데님 팬츠", price:"90P", brand:"무신사스탠다드", size:"30", color:"블루", category:"하의", seller:"junho", desc:"편안한 핏의 와이드 데님 팬츠예요. 어떤 상의와도 잘 어울립니다."},
   {id:"bag", emoji:"👜", name:"미니 크로스백", price:"110P", brand:"코치", size:"FREE", color:"브라운", category:"가방", seller:"jiyeon", desc:"데일리로 메기 좋은 미니 크로스백이에요. 수납 공간이 넉넉합니다."},
+  {id:"adminGift", emoji:"🎁", name:"운영자의 감사 선물 세트", price:"50P", brand:"NONO 운영팀", size:"FREE", color:"-", category:"가방", seller:"admin", desc:"니옷내옷을 이용해주셔서 감사합니다! 운영자가 직접 준비한 특별 선물이에요."},
 ];
 // Live, mutable copy — registerProduct() pushes here; resetAllData() restores it from productSeed
 let products = productSeed.map(p=>({...p}));
@@ -719,6 +720,7 @@ const sellers = {
   sumin:  {name:"수민", avatar:"🙂"},
   haneul: {name:"하늘", avatar:"🙂"},
   junho:  {name:"준호", avatar:"🙂"},
+  admin:  {name:"운영자", avatar:"👑"},
 };
 // Chat list starts EMPTY — a chat room is created only when a transaction begins
 // (see postExchangeMessageToSeller), matching real app behavior.
@@ -902,6 +904,14 @@ function submitEmailLogin(){
   const err = document.getElementById('loginError');
   if(!email || !pw){ err.style.display='block'; return; }
   err.style.display='none';
+  // 어드민 계정: 지정된 자격증명일 때만 관리자로 로그인
+  // [보안 안내] 목업 특성상 자격증명이 클라이언트 코드에 그대로 노출되어 있어 실제 서비스에는 사용 불가
+  const ADMIN_EMAIL = "s1mplegod";
+  const ADMIN_PW = "n@e4343e";
+  if(email === ADMIN_EMAIL && pw === ADMIN_PW){
+    completeLogin({ name:"운영자", email, provider:"admin", isAdmin:true });
+    return;
+  }
   completeLogin({ name:"김네옷", email, provider:"email" });
 }
 function checkSignupPw(){
@@ -959,6 +969,7 @@ let stats = {
   co2Saved: 18.7,      // matches original "누적 CO₂ 절감 18.7kg" baseline
   pointExchanges: 0,   // hidden-achievement tracker: 포인트로 교환 신청한 횟수
   profileCompleted: false, // hidden-achievement tracker: 이름+한줄소개 모두 저장했는지
+  adminDealDone: false, // 히든 업적 트래커: 운영자(admin)와 거래를 성공했는지
 };
 function favoritesCount(){ return products.filter(p=>p.favorited).length; }
 
@@ -1013,9 +1024,11 @@ const achievements = [
   {icon:"📦", name:"등록왕", desc:"상품 5개 이상 등록", check: s=>s.registered>=5},
   {icon:"❤️", name:"애정 수집가", desc:"관심상품 5개 이상 찜", check: s=>favoritesCount()>=5},
   // ---- 히든 업적: 달성 전에는 이름/설명을 흐릿하게(blur) 가려서 보여줌 ----
-  {icon:"💎", name:"포인트 큰손", desc:"포인트로 2회 이상 교환 신청", check: s=>s.pointExchanges>=2, hidden:true},
-  {icon:"✍️", name:"완벽한 소개", desc:"프로필에 한줄 소개까지 작성", check: s=>s.profileCompleted, hidden:true},
-  {icon:"🛍️", name:"쇼핑 마니아", desc:"관심상품 8개 이상 찜", check: s=>favoritesCount()>=8, hidden:true},
+  {icon:"💎", name:"포인트 큰손", desc:"포인트로 2회 이상 교환 신청", check: s=>s.pointExchanges>=2},
+  {icon:"✍️", name:"완벽한 소개", desc:"프로필에 한줄 소개까지 작성", check: s=>s.profileCompleted},
+  {icon:"🛍️", name:"쇼핑 마니아", desc:"관심상품 8개 이상 찜", check: s=>favoritesCount()>=8},
+  // ---- 히든 업적: 달성 전에는 이름/설명을 흐릿하게(blur) 가려서 보여줌 ----
+  {icon:"👋", name:"안녕하세용", desc:"운영자와의 거래 성공!", check: s=>s.adminDealDone, hidden:true},
 ];
 function renderBadges(){
   const grid = document.getElementById('badgeGrid');
@@ -1045,7 +1058,7 @@ function resetAllData(){
   chats = [];
   currentChatId = null;
   myPoints = 1250;
-  stats = { transactions:12, registered:0, co2Saved:18.7, pointExchanges:0, profileCompleted:false };
+  stats = { transactions:12, registered:0, co2Saved:18.7, pointExchanges:0, profileCompleted:false, adminDealDone:false };
   lastKnownLevel = null;
   renderGrids();
   renderChatList();
@@ -1121,6 +1134,7 @@ function postExchangeMessageToSeller(p, userMsg, viaLabel){
   if(userMsg) c.messages.push({from:'me', text:userMsg});
   stats.transactions += 1;
   stats.co2Saved = +(stats.co2Saved + 2.3).toFixed(1); // [샘플 데이터] 거래 1건당 추정 절감량
+  if(sellerId === 'admin') stats.adminDealDone = true;
   updateProgress();
   c.messages.push({from:'system', text:`🔔 [${p.name}] ${viaLabel} 교환 신청을 보냈어요. 상대방의 수락을 기다려주세요.`});
   c.time = '방금';
