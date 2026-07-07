@@ -330,6 +330,9 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
       <span style="color:var(--gray)">⤴</span>
     </div>
     <div class="content" id="pd-content"></div>
+    <div id="adminDeleteRow" style="display:none;padding:0 24px 8px">
+      <button class="btn outline" style="font-size:11px;width:100%;color:var(--red);border-color:var(--red)" onclick="deleteProduct(currentProductId)">🗑️ 상품 삭제하기 (운영자)</button>
+    </div>
     <div style="display:flex;gap:10px;padding:14px 24px;border-top:1px solid var(--border)">
       <button class="btn outline" style="font-size:11px" onclick="openPointModal()">P 포인트로 교환 신청</button>
       <button class="btn" style="font-size:11px" onclick="goToExchange()">💬 채팅하기</button>
@@ -527,7 +530,8 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
         </div>
       </div>
 
-      <button class="btn outline" style="margin-top:24px;color:var(--red);border-color:var(--red)" onclick="showWithdraw()">회원 탈퇴</button>
+      <button class="btn outline" id="withdrawBtn" style="margin-top:24px;color:var(--red);border-color:var(--red)" onclick="showWithdraw()">회원 탈퇴</button>
+      <p id="withdrawAdminNotice" style="display:none;font-size:9px;color:var(--gray);margin-top:8px;text-align:center">운영자 계정은 회원 탈퇴할 수 없어요</p>
     </div>
   </div>
 
@@ -743,7 +747,22 @@ const productSeed = [
   {id:"adminGift", emoji:"🎁", name:"운영자의 감사 선물 세트", price:"50P", brand:"NONO 운영팀", size:"FREE", color:"-", category:"가방", seller:"admin", desc:"니옷내옷을 이용해주셔서 감사합니다! 운영자가 직접 준비한 특별 선물이에요."},
 ];
 // Live, mutable copy — registerProduct() pushes here; resetAllData() restores it from productSeed
-let products = productSeed.map(p=>({...p}));
+// Admin-deleted catalog items are tracked separately from productSeed itself,
+// so the original seed stays intact as a reference and deletions persist globally.
+const DELETED_PRODUCTS_KEY = 'nono_deleted_products';
+let deletedProductIds = [];
+function loadDeletedProducts(){
+  try{ deletedProductIds = JSON.parse(localStorage.getItem(DELETED_PRODUCTS_KEY) || '[]'); }
+  catch(e){ deletedProductIds = []; }
+}
+function saveDeletedProducts(){
+  try{ localStorage.setItem(DELETED_PRODUCTS_KEY, JSON.stringify(deletedProductIds)); }
+  catch(e){ /* storage unavailable — deletion just won't persist across a refresh */ }
+}
+function activeProductSeed(){
+  return productSeed.filter(p=>!deletedProductIds.includes(p.id));
+}
+let products = activeProductSeed().map(p=>({...p}));
 // Seller directory: display info only (name/avatar). No chat room exists until
 // the user actually starts a transaction (거래) with that seller.
 const sellers = {
@@ -805,6 +824,16 @@ function goToExchange(){
   currentExchangeProductId = currentProductId;
   nav('exchange');
 }
+function deleteProduct(id){
+  if(!(currentUser && currentUser.isAdmin)){ toast('운영자만 상품을 삭제할 수 있어요'); return; }
+  if(!id) return;
+  if(!deletedProductIds.includes(id)) deletedProductIds.push(id);
+  saveDeletedProducts();
+  products = products.filter(p=>p.id!==id);
+  renderGrids();
+  toast('상품이 삭제됐어요 🗑️');
+  nav('home');
+}
 function openProduct(id){
   currentProductId = id;
   const p = products.find(x=>x.id===id);
@@ -823,6 +852,8 @@ function openProduct(id){
     <h2 class="section">상품 설명</h2>
     <p style="font-size:12px;line-height:1.6">${p.desc}</p>
   `;
+  const deleteRow = document.getElementById('adminDeleteRow');
+  if(deleteRow) deleteRow.style.display = (currentUser && currentUser.isAdmin) ? '' : 'none';
   nav('product');
 }
 
@@ -947,14 +978,14 @@ function loadAccountData(email){
     stats = Object.assign({transactions:0,registered:0,co2Saved:0,reviews:0,pointExchanges:0,profileCompleted:false,adminDealDone:false}, data.stats||{});
     myPoints = typeof data.myPoints === 'number' ? data.myPoints : 0;
     const favSet = new Set(data.favorited||[]);
-    products = productSeed.map(p=>({...p, favorited:favSet.has(p.id)}));
+    products = activeProductSeed().map(p=>({...p, favorited:favSet.has(p.id)}));
     recentSearches = data.recentSearches || [];
   } else {
     // 이 계정으로는 처음 로그인 — 완전히 빈 상태에서 시작
     chats = [];
     stats = {transactions:0,registered:0,co2Saved:0,reviews:0,pointExchanges:0,profileCompleted:false,adminDealDone:false};
     myPoints = 0;
-    products = productSeed.map(p=>({...p, favorited:false}));
+    products = activeProductSeed().map(p=>({...p, favorited:false}));
     recentSearches = [];
   }
   currentChatId = null;
@@ -1088,6 +1119,7 @@ function submitSignup(){
   if(!name || !email){ toast('이름과 이메일을 입력해주세요'); return; }
   if(!pw || pw.length<8 || pw!==pwConfirm){ toast('비밀번호를 확인해주세요'); return; }
   if(registeredAccounts.some(a=>a.email===email)){ toast('이미 가입된 이메일이에요'); return; }
+  eraseAccountData(email); // 이전에 같은 이메일로 남아있던 데이터(찜한 상품 등)가 있다면 확실히 제거 후 새로 시작
   const newAccount = { name, email, password:pw, avatar:'🙂', avatarPhoto:null, bio:'', joinedAt: new Date().toISOString() };
   registeredAccounts.push(newAccount);
   saveAccounts();
@@ -1121,7 +1153,10 @@ function toast(msg){
 }
 function showLogout(){ document.getElementById('logoutOverlay').classList.add('show'); }
 function hideLogout(){ document.getElementById('logoutOverlay').classList.remove('show'); }
-function showWithdraw(){ document.getElementById('withdrawOverlay').classList.add('show'); }
+function showWithdraw(){
+  if(currentUser && currentUser.isAdmin){ toast('운영자 계정은 회원 탈퇴할 수 없어요'); return; }
+  document.getElementById('withdrawOverlay').classList.add('show');
+}
 function hideWithdraw(){ document.getElementById('withdrawOverlay').classList.remove('show'); }
 
 // ---- Point-based exchange request (with real available-points check) ----
@@ -1290,6 +1325,10 @@ function goToSettings(){
   const testTools = document.getElementById('testToolsSection');
   const isAdminUser = !!(currentUser && currentUser.isAdmin);
   if(testTools) testTools.style.display = isAdminUser ? '' : 'none';
+  const withdrawBtn = document.getElementById('withdrawBtn');
+  const withdrawNotice = document.getElementById('withdrawAdminNotice');
+  if(withdrawBtn) withdrawBtn.style.display = isAdminUser ? 'none' : '';
+  if(withdrawNotice) withdrawNotice.style.display = isAdminUser ? '' : 'none';
   if(panel){
     panel.style.display = isAdminUser ? '' : 'none';
     if(isAdminUser){
@@ -1330,7 +1369,7 @@ function applyAdminStats(){
 }
 
 function resetAllData(){
-  products = productSeed.map(p=>({...p}));
+  products = activeProductSeed().map(p=>({...p}));
   chats = [];
   currentChatId = null;
   myPoints = 0;
@@ -1475,7 +1514,7 @@ function confirmWithdraw(){
     chats = [];
     stats = {transactions:0, registered:0, co2Saved:0, reviews:0, pointExchanges:0, profileCompleted:false, adminDealDone:false};
     myPoints = 0;
-    products = productSeed.map(p=>({...p, favorited:false}));
+    products = activeProductSeed().map(p=>({...p, favorited:false}));
     recentSearches = [];
     currentChatId = null;
     lastKnownLevel = null;
@@ -1850,6 +1889,7 @@ renderAddressList();
 renderLanguageList();
 renderPoints();
 loadAccounts();
+loadDeletedProducts();
 updateProgress();
 
 // ---- Restore session on page load/refresh (persists login + last screen) ----
@@ -1871,6 +1911,10 @@ updateProgress();
       const testTools = document.getElementById('testToolsSection');
       const isAdminUser = !!(currentUser && currentUser.isAdmin);
       if(testTools) testTools.style.display = isAdminUser ? '' : 'none';
+      const withdrawBtn = document.getElementById('withdrawBtn');
+      const withdrawNotice = document.getElementById('withdrawAdminNotice');
+      if(withdrawBtn) withdrawBtn.style.display = isAdminUser ? 'none' : '';
+      if(withdrawNotice) withdrawNotice.style.display = isAdminUser ? '' : 'none';
       if(panel){
         panel.style.display = isAdminUser ? '' : 'none';
         if(isAdminUser){
