@@ -8,7 +8,7 @@
 :root{
   --green:#2E7D32; --green-dark:#1B5E20; --pale:#E8F5E9; --bg:#F7F9F6;
   --imggray:#EFEFEF; --dark:#222; --gray:#828282; --border:#E5E5E5;
-  --yellow:#FFC107; --red:#E53935;
+  --yellow:#FFC107; --red:#E53935; --mint:#A5D6A7; --cream:#F7F7F2; --tan:#E8E5D6;
 }
 *{box-sizing:border-box;}
 body{margin:0;font-family:'Malgun Gothic','Noto Sans KR',sans-serif;background:#dcdcdc;
@@ -21,6 +21,15 @@ body{margin:0;font-family:'Malgun Gothic','Noto Sans KR',sans-serif;background:#
 .screen.enter{transform:translateY(-100%);animation:slideIn .4s forwards;}
 .screen.leaving{animation:slideOut .4s forwards;}
 @keyframes slideIn{from{transform:translateY(-100%);}to{transform:translateY(0);}}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:14px;}
+.dots span{width:6px;height:6px;border-radius:50%;background:var(--border);}
+.dots span.active{width:16px;border-radius:3px;background:var(--green);}
+.leaf-deco{position:absolute;font-size:20px;opacity:.55;pointer-events:none;}
+.progress-ring{position:relative;width:110px;height:110px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.progress-ring .ring-label{text-align:center;}
+.grad-card{background:linear-gradient(135deg,var(--pale) 0%,#fff 100%);}
+.badge-circle{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
 @keyframes slideOut{from{transform:translateY(0);}to{transform:translateY(100%);}}
 
 
@@ -157,25 +166,34 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="header">
       <span style="font-weight:700;color:var(--green);font-size:17px;display:flex;align-items:center;gap:6px"><img src="data:image/jpeg;base64,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" alt="니옷내옷 로고" style="width:26px;height:26px;vertical-align:-7px;border-radius:5px"> 니옷내옷 <span style="font-weight:400;color:var(--green);font-size:12px">(NONO)</span></span>
     </div>
-    <div class="content">
-      <h1 style="font-size:24px;margin:16px 0 4px">입지 않는 옷에,</h1>
-      <h1 style="font-size:24px;margin:0 0 12px;color:var(--green)">새로운 가치를 입히다.</h1>
-      <p style="font-size:12px;color:var(--gray);line-height:1.6">니옷내옷(NONO)이 처음이신가요?<br>3가지 핵심 기능을 소개해드릴게요.</p>
+    <div class="content" style="position:relative">
+      <div class="leaf-deco" style="top:10px;left:20px;transform:rotate(-20deg)">🍃</div>
+      <div class="leaf-deco" style="top:60px;right:24px;transform:rotate(15deg)">🍃</div>
+      <div style="text-align:center;margin-top:36px">
+        <div style="font-size:44px">🧺</div>
+      </div>
+      <h1 style="font-size:22px;margin:20px 0 2px;text-align:center">입지 않는 옷에,</h1>
+      <h1 style="font-size:22px;margin:0 0 10px;color:var(--green);text-align:center">새로운 가치를 입히다.</h1>
 
-      <div class="card" style="display:flex;gap:14px;align-items:center;margin-top:16px">
-        <div style="width:56px;height:56px;border-radius:50%;background:var(--pale);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🔄</div>
-        <div><div style="font-weight:700;font-size:14px">서로의 옷을 교환해요</div><div style="font-size:11px;color:var(--gray);margin-top:4px">안 입는 옷을 등록하고 다른 사람과 교환해 포인트를 받아보세요.</div></div>
-      </div>
-      <div class="card" style="display:flex;gap:14px;align-items:center;margin-top:12px">
-        <div style="width:56px;height:56px;border-radius:50%;background:var(--pale);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🌱</div>
-        <div><div style="font-weight:700;font-size:14px">지구를 함께 지켜요</div><div style="font-size:11px;color:var(--gray);margin-top:4px">교환할 때마다 CO₂ 절감량과 물·에너지 절약 효과를 확인해요.</div></div>
-      </div>
-      <div class="card" style="display:flex;gap:14px;align-items:center;margin-top:12px">
-        <div style="width:56px;height:56px;border-radius:50%;background:var(--pale);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🤖</div>
-        <div><div style="font-weight:700;font-size:14px">AI가 취향을 추천해요</div><div style="font-size:11px;color:var(--gray);margin-top:4px">스타일, 색상, 계절을 분석해 딱 맞는 아이템을 제안해드려요.</div></div>
+      <div class="grad-card" style="border-radius:20px;padding:20px 16px;margin-top:10px;position:relative;overflow:hidden">
+        <div class="leaf-deco" style="top:6px;right:14px">🌿</div>
+        <div style="display:flex;justify-content:center;align-items:flex-end;gap:14px;height:120px;margin-bottom:10px">
+          <div style="width:2px;height:90px;background:#B08968;position:relative">
+            <div style="position:absolute;top:0;left:-52px;width:106px;height:2px;background:#B08968"></div>
+          </div>
+          <div style="position:absolute;left:26%;top:14px;font-size:34px;transform:rotate(-8deg)">🧥</div>
+          <div style="position:absolute;left:44%;top:10px;font-size:34px">👕</div>
+          <div style="position:absolute;left:62%;top:14px;font-size:34px;transform:rotate(8deg)">🧶</div>
+        </div>
+        <div style="display:flex;justify-content:center;gap:16px">
+          <span style="font-size:20px">🪴</span><span style="font-size:20px">🧺</span><span style="font-size:20px">📚</span>
+        </div>
       </div>
 
-      <button class="btn" style="margin-top:24px" onclick="nav('login')">시작하기</button>
+      <p style="font-size:12px;color:var(--gray);line-height:1.6;text-align:center;margin-top:16px">니옷내옷(NONO)과 함께<br>지속가능한 패션과 교환의 가치를 경험해보세요.</p>
+      <div class="dots"><span class="active"></span><span></span><span></span><span></span><span></span></div>
+
+      <button class="btn" style="margin-top:20px" onclick="nav('login')">시작하기</button>
       <p style="text-align:center;font-size:11px;color:var(--gray);margin-top:14px;cursor:pointer" onclick="nav('login')">이미 계정이 있으신가요? 로그인</p>
     </div>
   </div>
@@ -183,7 +201,10 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
   <!-- ============ LOGIN ============ -->
   <div class="screen" id="screen-login">
     <div class="top-spacer"></div>
-    <div class="content" style="display:flex;flex-direction:column;justify-content:center;height:100%;text-align:center">
+    <div class="content" style="display:flex;flex-direction:column;justify-content:center;height:100%;text-align:center;position:relative;background:linear-gradient(to bottom, #fff 60%, var(--pale) 100%)">
+      <div class="leaf-deco" style="top:24px;left:24px;transform:rotate(-15deg)">🍃</div>
+      <div class="leaf-deco" style="top:80px;right:28px;transform:rotate(20deg)">🍃</div>
+      <div class="leaf-deco" style="bottom:40px;left:34px;transform:rotate(10deg);font-size:16px">🍃</div>
       <div style="width:76px;height:76px;margin:0 auto"><img src="data:image/jpeg;base64,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" alt="니옷내옷 로고" style="width:100%;height:100%;border-radius:12px"></div>
       <h1 style="font-size:22px;color:var(--green);margin:8px 0 2px">니옷내옷 <span style="font-size:14px;font-weight:400;color:var(--green)">(NONO)</span></h1>
       <p style="font-size:11px;color:var(--gray);margin-bottom:24px">로그인하고 다양한 혜택을 누려보세요.</p>
@@ -244,6 +265,7 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
         <button class="btn" style="width:150px;padding:8px;font-size:11px">추천 보러가기 ></button>
         <div style="position:absolute;right:16px;top:16px;font-size:48px">🧥</div>
       </div>
+      <div class="dots" style="margin-top:8px"><span class="active"></span><span></span><span></span><span></span></div>
 
       <div class="section-row"><h2 class="section" style="margin:0">인기 교환 상품</h2><a onclick="nav('search')">더보기 ></a></div>
       <div class="grid4" id="homeGrid"></div>
@@ -299,12 +321,27 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="top-spacer"></div>
     <div class="header"><span class="back" onclick="back()">←</span><h1>AI 추천</h1></div>
     <div class="content">
-      <div class="card" style="display:flex;gap:14px;align-items:center">
+      <div class="grad-card" style="border-radius:16px;padding:16px;display:flex;gap:14px;align-items:center">
         <div style="font-size:36px">🤖</div>
-        <div><div style="font-weight:700;font-size:14px">당신의 취향에 딱 맞는 의류를 추천해드려요!</div><div style="font-size:10px;color:var(--gray);margin-top:4px">스타일, 색상, 계절을 분석해 제안합니다.</div></div>
+        <div><span style="background:#fff;border-radius:10px;padding:2px 8px;font-size:9px;font-weight:700;color:var(--green)">AI 추천</span>
+        <div style="font-weight:700;font-size:14px;margin-top:4px">당신의 취향에 딱 맞는<br>의류를 추천해드려요!</div>
+        <div style="font-size:10px;color:var(--gray);margin-top:4px">스타일, 색상, 계절을 분석해 제안합니다.</div></div>
       </div>
       <h2 class="section">나만을 위한 추천</h2>
       <div class="grid4" id="aiGrid"></div>
+
+      <h2 class="section">스타일 추천</h2>
+      <div class="grid4">
+        <div class="cat-item"><div class="circle" style="font-size:22px">👔</div><div class="label">미니멀</div></div>
+        <div class="cat-item"><div class="circle" style="font-size:22px">🧢</div><div class="label">캐주얼</div></div>
+        <div class="cat-item"><div class="circle" style="font-size:22px">🎀</div><div class="label">러블리</div></div>
+        <div class="cat-item"><div class="circle" style="font-size:22px">👟</div><div class="label">스트릿</div></div>
+      </div>
+
+      <div class="card" style="background:var(--pale);margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="font-size:11px;line-height:1.6">더 많은 추천을 받고 싶다면?<br><span style="color:var(--gray);font-size:10px">관심 스타일을 설정하면 더 정확한 추천을 받을 수 있어요.</span></div>
+        <button class="btn" style="width:80px;padding:8px 4px;font-size:11px;flex-shrink:0" onclick="goToProfileEdit()">설정하기</button>
+      </div>
     </div>
     <div class="bottom-nav" id="nav-none"></div>
   </div>
@@ -388,13 +425,38 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
   <div class="screen" id="screen-done">
     <div class="top-spacer"></div>
     <div class="header"><span class="back" onclick="nav('home')">←</span><h1>거래 완료</h1></div>
-    <div class="content" style="text-align:center">
-      <div style="width:56px;height:56px;border-radius:50%;background:var(--green);color:#fff;
-        display:flex;align-items:center;justify-content:center;font-size:24px;margin:16px auto">✓</div>
-      <h2 style="font-size:17px;margin:12px 0 4px">거래가 완료되었습니다!</h2>
+    <div class="content" style="text-align:center;position:relative">
+      <div class="leaf-deco" style="top:8px;left:30px">🍃</div>
+      <div class="leaf-deco" style="top:20px;right:32px;font-size:14px">✨</div>
+      <div class="leaf-deco" style="top:60px;left:50px;font-size:14px">✨</div>
+      <div style="width:64px;height:64px;border-radius:50%;background:var(--green);color:#fff;
+        display:flex;align-items:center;justify-content:center;font-size:28px;margin:20px auto 0">✓</div>
+      <h2 style="font-size:17px;margin:14px 0 4px">거래가 완료되었습니다!</h2>
       <p style="font-size:11px;color:var(--gray)">교환이 성공적으로 완료되었어요.</p>
-      <div class="card" style="margin-top:16px;text-align:left"><b>🌱 나눔이 지구를 지켰어요!</b><div style="font-size:11px;margin-top:4px">이번 교환으로 CO₂ 1.2kg을 절감했어요.</div></div>
-      <div class="btn-row" style="margin-top:20px">
+
+      <div class="card" style="background:var(--pale);margin-top:16px;text-align:left;display:flex;gap:8px;align-items:center">
+        <span style="font-size:16px">🌱</span><div><b style="font-size:12px">나눔이 지구를 지켰어요!</b><div style="font-size:10px;color:var(--gray);margin-top:2px" id="doneCo2Line">이번 교환으로 CO₂ 1.2kg을 절감했어요.</div></div>
+      </div>
+
+      <h2 class="section" style="text-align:left">거래 정보</h2>
+      <div class="card" style="text-align:left" id="doneTradeInfo">
+        <div style="font-size:11px;color:var(--gray)">상대방</div><div style="font-weight:700;font-size:13px" id="doneCounterparty">-</div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
+        <div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0"><span style="color:var(--gray)">거래 방식</span><span>직거래</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0"><span style="color:var(--gray)">거래 장소</span><span>서울 강남구 역삼동</span></div>
+      </div>
+
+      <h2 class="section" style="text-align:left">환경 기여 결과</h2>
+      <div class="card" style="display:flex;justify-content:space-around;text-align:center">
+        <div><div style="font-size:15px">🌱</div><div style="font-size:9px;color:var(--gray);margin-top:2px">CO₂ 절감</div><div style="font-weight:700;color:var(--green);font-size:13px">1.2kg</div></div>
+        <div><div style="font-size:15px">💧</div><div style="font-size:9px;color:var(--gray);margin-top:2px">물 절약</div><div style="font-weight:700;color:var(--green);font-size:13px">120L</div></div>
+        <div><div style="font-size:15px">🌳</div><div style="font-size:9px;color:var(--gray);margin-top:2px">나무 심기</div><div style="font-weight:700;color:var(--green);font-size:13px">0.1그루</div></div>
+        <div><div style="font-size:15px">⚡</div><div style="font-size:9px;color:var(--gray);margin-top:2px">에너지 절약</div><div style="font-weight:700;color:var(--green);font-size:13px">0.5kWh</div></div>
+      </div>
+
+      <div class="card" style="background:var(--pale);margin-top:12px;font-size:11px">💚 함께 만드는 더 나은 지구 — 작은 나눔이 모여 큰 변화를 만듭니다.</div>
+
+      <div class="btn-row" style="margin-top:16px">
         <button class="btn outline" onclick="nav('home')">홈으로 이동</button>
         <button class="btn" onclick="nav('review')">후기 작성하기</button>
       </div>
@@ -627,22 +689,50 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
   <!-- ============ ENVIRONMENTAL CONTRIBUTION REPORT ============ -->
   <div class="screen" id="screen-report">
     <div class="top-spacer"></div>
-    <div class="header"><span class="back" onclick="back()">←</span><h1>환경 기여 리포트</h1></div>
+    <div class="header" style="justify-content:space-between"><span class="back" onclick="back()">←</span><h1>환경 기여 리포트</h1><span style="color:var(--gray)">⤴</span></div>
     <div class="content">
-      <div class="card" style="background:var(--pale);text-align:center">
-        <div style="font-size:11px;color:var(--gray)" id="reportLevelSub">Lv.4 에코 히어로</div>
-        <div style="font-size:32px;font-weight:700;color:var(--green);margin:6px 0" id="reportCo2Big">18.7kg</div>
-        <div style="font-size:10px;color:var(--gray)">누적 CO₂ 절감량</div>
-        <div style="margin-top:12px;height:6px;border-radius:3px;background:#fff;overflow:hidden"><div id="reportLevelBar" style="height:100%;background:var(--green);width:0%"></div></div>
-        <div style="font-size:9px;color:var(--gray);margin-top:4px" id="reportLevelSub2">다음 레벨까지 0XP</div>
+      <div class="grad-card" style="border-radius:16px;padding:16px;display:flex;align-items:center;gap:12px">
+        <div style="font-size:34px">🌍</div>
+        <div><div style="font-weight:700;font-size:14px">나의 작은 실천이<br>지구를 바꾸고 있어요!</div></div>
       </div>
-      <div class="card" style="display:flex;justify-content:space-around;text-align:center;margin-top:14px">
-        <div><div style="font-size:10px;color:var(--gray)">거래 완료</div><div style="font-weight:700;color:var(--green)" id="reportTradeCount">12건</div></div>
-        <div><div style="font-size:10px;color:var(--gray)">등록 상품</div><div style="font-weight:700;color:var(--green)" id="reportRegisteredCount">0개</div></div>
-        <div><div style="font-size:10px;color:var(--gray)">보유 배지</div><div style="font-weight:700;color:var(--green)" id="reportBadgeCount">0개</div></div>
+
+      <div style="display:flex;gap:8px;margin-top:14px;overflow-x:auto">
+        <span class="chip active">이번 달</span><span class="chip">최근 3개월</span><span class="chip">올해</span><span class="chip">전체</span>
       </div>
-      <h2 class="section">CO₂ 절감 안내</h2>
-      <p style="font-size:11px;color:var(--gray);line-height:1.7">거래 1건당 약 2.3kg의 CO₂ 절감 효과가 있는 것으로 추정돼요.<br>* 샘플 데이터(실측 아님) — 실제 탄소 절감량은 상품군에 따라 달라질 수 있습니다.</p>
+
+      <div class="card" style="display:flex;justify-content:space-around;text-align:center;margin-top:12px">
+        <div><div style="font-size:16px">🔄</div><div style="font-size:9px;color:var(--gray);margin-top:4px">교환 횟수</div><div style="font-weight:700;color:var(--green);font-size:14px" id="reportTradeCount">0건</div></div>
+        <div><div style="font-size:16px">☁️</div><div style="font-size:9px;color:var(--gray);margin-top:4px">CO₂ 절감량</div><div style="font-weight:700;color:var(--green);font-size:14px" id="reportCo2Mini">0kg</div></div>
+        <div><div style="font-size:16px">💧</div><div style="font-size:9px;color:var(--gray);margin-top:4px">물 절약량</div><div style="font-weight:700;color:var(--green);font-size:14px" id="reportWaterMini">0L</div></div>
+        <div><div style="font-size:16px">⚡</div><div style="font-size:9px;color:var(--gray);margin-top:4px">에너지 절약</div><div style="font-weight:700;color:var(--green);font-size:14px" id="reportEnergyMini">0kWh</div></div>
+      </div>
+
+      <div class="card grad-card" style="margin-top:14px;display:flex;align-items:center;gap:16px">
+        <div class="progress-ring" id="reportRing" style="background:conic-gradient(var(--green) 0%, var(--imggray) 0)">
+          <div style="width:82px;height:82px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <span style="font-size:14px">🌱</span>
+            <div style="font-weight:700;font-size:15px;color:var(--green)" id="reportRingLevel">Lv.1</div>
+          </div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--gray)">누적 CO₂ 절감</div>
+          <div style="font-size:20px;font-weight:700;color:var(--green)" id="reportCo2Big">0.0kg</div>
+          <div id="reportLevelSub2" style="font-size:9px;color:var(--gray);margin-top:6px">다음 레벨까지 0XP</div>
+        </div>
+      </div>
+
+      <h2 class="section">보유 배지</h2>
+      <div id="reportBadgeRow" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+      <p style="font-size:9px;color:var(--gray);margin-top:6px" id="reportBadgeCountText">0개 획득</p>
+
+      <h2 class="section">최근 활동 내역</h2>
+      <div id="reportRecentActivity"></div>
+
+      <div class="card" style="background:var(--pale);margin-top:14px;display:flex;gap:10px;align-items:center">
+        <span style="font-size:18px">🌱</span>
+        <div style="font-size:11px;line-height:1.6">지속 가능한 패션, 함께 만들어가요!<br><span style="color:var(--gray);font-size:10px">실천이 모여 더 큰 변화를 만듭니다. 감사합니다.</span></div>
+      </div>
+      <p style="font-size:9px;color:var(--gray);line-height:1.7;margin-top:14px">* 물·에너지 절약량, 월별 CO₂ 추이는 거래 데이터 기반 추정치이며 샘플 데이터(실측 아님)입니다.</p>
     </div>
   </div>
 
@@ -1219,12 +1309,15 @@ function renderLevel(){
   setWidthIfExists('mypageLevelBar', info.percent);
   setIfExists('mypageReviewCount', stats.reviews+'개');
 
-  setIfExists('reportLevelSub', levelText);
   setIfExists('reportLevelSub2', sub);
-  setWidthIfExists('reportLevelBar', info.percent);
   setIfExists('reportCo2Big', stats.co2Saved.toFixed(1)+'kg');
+  setIfExists('reportCo2Mini', stats.co2Saved.toFixed(1)+'kg');
+  setIfExists('reportWaterMini', Math.round(stats.co2Saved*100)+'L'); // [샘플 공식]
+  setIfExists('reportEnergyMini', (stats.co2Saved*0.34).toFixed(1)+'kWh'); // [샘플 공식]
   setIfExists('reportTradeCount', stats.transactions+'건');
-  setIfExists('reportRegisteredCount', stats.registered+'개');
+  setIfExists('reportRingLevel', 'Lv.'+info.level);
+  const ring = document.getElementById('reportRing');
+  if(ring) ring.style.background = `conic-gradient(var(--green) ${info.percent}%, var(--imggray) 0)`;
 
   setIfExists('mypageTradeCount', stats.transactions+'건');
   setIfExists('mypageTradeSub', `진행중 2건 · 완료 ${stats.transactions}건`);
@@ -1266,7 +1359,15 @@ function renderBadges(){
   if(countText) countText.textContent = `${unlocked.length}개 획득 · 총 ${achievements.length}개 (히든 포함)`;
   const setIfExists = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
   setIfExists('mypageBadgeSub', `${unlocked.length}개 획득`);
-  setIfExists('reportBadgeCount', unlocked.length+'개');
+  setIfExists('reportBadgeCountText', unlocked.length+'개 획득');
+
+  const badgeRow = document.getElementById('reportBadgeRow');
+  if(badgeRow){
+    badgeRow.innerHTML = achievements.filter(a=>!a.hidden).map(a=>{
+      const on = isAdminUser ? true : a.check(stats);
+      return `<div class="badge-circle" style="background:${on?'var(--pale)':'var(--imggray)'}" title="${a.name}">${on?a.icon:'🔒'}</div>`;
+    }).join('');
+  }
 }
 function isInquiryChat(c){ return c.id === 'support' || c.id.startsWith('inquiry_'); }
 function renderTradeList(filter){
@@ -1290,6 +1391,13 @@ function renderTradeList(filter){
   if(mCount) mCount.textContent = (ongoing.length+done.length)+'건';
   const rCount = document.getElementById('reportTradeCount');
   if(rCount) rCount.textContent = (ongoing.length+done.length)+'건';
+  const reportActivity = document.getElementById('reportRecentActivity');
+  if(reportActivity){
+    const recent = realDeals.slice(0,3);
+    reportActivity.innerHTML = recent.length ? recent.map(c=>`
+      <div class="list-row"><div class="icon">${c.product.emoji}</div><div class="text"><div class="title">${c.product.name}</div><div class="sub">${c.name}님 · ${c.product.status}</div></div></div>
+    `).join('') : `<p style="text-align:center;color:var(--gray);font-size:12px;margin:20px 0">아직 활동 내역이 없어요</p>`;
+  }
 }
 function updateProgress(){ renderLevel(); renderBadges(); renderTradeList(); }
 
