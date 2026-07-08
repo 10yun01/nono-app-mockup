@@ -827,6 +827,7 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     </div>
   </div>
 
+  <div id="samplePreviewBar" onclick="exitSamplePreview()" style="display:none;position:absolute;bottom:60px;left:50%;transform:translateX(-50%);z-index:999;background:var(--dark);color:#fff;padding:10px 18px;border-radius:24px;font-size:12px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.3);cursor:pointer;white-space:nowrap">← 샘플 미리보기 목록으로</div>
   <div class="toast" id="toast"></div>
   
 </div>
@@ -1049,6 +1050,8 @@ function clearSession(){
 }
 function logoutUser(){
   if(currentUser) saveAccountData(currentUser.email); // 로그아웃 전 이 계정의 활동 데이터를 저장
+  const bar = document.getElementById('samplePreviewBar');
+  if(bar) bar.style.display = 'none';
   clearSession();
   goToSplashReset();
 }
@@ -1466,6 +1469,8 @@ function renderPageViewerList(){
   `).join('');
 }
 function viewSamplePage(id){
+  const bar = document.getElementById('samplePreviewBar');
+  if(bar) bar.style.display = 'block';
   switch(id){
     case 'product': {
       const p = products[0] || (productSeed && productSeed[0]);
@@ -1483,6 +1488,16 @@ function viewSamplePage(id){
     case 'profileEdit': goToProfileEdit(); return;
     default: nav(id); return;
   }
+}
+function exitSamplePreview(){
+  const bar = document.getElementById('samplePreviewBar');
+  if(bar) bar.style.display = 'none';
+  const cur = document.getElementById('screen-'+currentScreen());
+  if(cur) cur.classList.remove('active');
+  const target = document.getElementById('screen-pageviewer');
+  target.classList.add('active');
+  target.classList.remove('enter'); void target.offsetWidth; target.classList.add('enter');
+  stack = ['home','settings','pageviewer'];
 }
 
 function goToSettings(){
