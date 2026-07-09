@@ -1056,9 +1056,15 @@ async function loadSharedProducts(){
 }
 async function saveOneProductToCloud(product){
   try{
+    const { favorited, ...rest } = product; // favorited는 계정별 값이라 클라우드에는 저장하지 않음
+    const sizeBytes = new Blob([JSON.stringify(rest)]).size;
+    if(sizeBytes > 950000){
+      toast('⚠️ 사진 용량이 너무 커요. 사진 수를 줄이거나 다시 시도해주세요');
+      console.warn('Product too large for Firestore:', sizeBytes, 'bytes');
+      return;
+    }
     await waitForFirebase();
     const { db, doc, setDoc } = window.__fb;
-    const { favorited, ...rest } = product; // favorited는 계정별 값이라 클라우드에는 저장하지 않음
     await setDoc(doc(db, 'products', product.id), rest);
   } catch(e){
     console.warn('Firestore save failed:', e);
@@ -2351,20 +2357,49 @@ function toggleFaq(el){ el.classList.toggle('open'); }
 window.__photoManagers = {};
 function createPhotoManager(gridId, maxCount){
   const mgr = { photos: [] };
-  mgr.upload = function(input){
+  // 업로드된 원본 사진(특히 아이패드/휴대폰 카메라 사진)은 수 MB에 달할 수 있어,
+  // Firestore 문서 용량 제한(1MB)을 넘기지 않도록 캔버스로 축소·압축한 뒤 저장한다.
+  function compressImage(file){
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onload = e=>{
+        const img = new Image();
+        img.onload = ()=>{
+          const MAX_DIM = 900;
+          let { width, height } = img;
+          if(width > MAX_DIM || height > MAX_DIM){
+            if(width > height){ height = Math.round(height * (MAX_DIM/width)); width = MAX_DIM; }
+            else { width = Math.round(width * (MAX_DIM/height)); height = MAX_DIM; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
+        };
+        img.onerror = ()=> reject(new Error('이미지를 읽지 못했어요'));
+        img.src = e.target.result;
+      };
+      reader.onerror = ()=> reject(new Error('파일을 읽지 못했어요'));
+      reader.readAsDataURL(file);
+    });
+  }
+  mgr.upload = async function(input){
     const files = Array.from(input.files || []);
     const room = maxCount - mgr.photos.length;
     const toRead = files.slice(0, room);
     if(files.length > room) toast('사진은 최대 '+maxCount+'장까지 등록 가능해요');
     if(toRead.length===0){ input.value=''; return; }
-    let pending = toRead.length;
-    toRead.forEach(file=>{
-      const reader = new FileReader();
-      reader.onload = e=>{ mgr.photos.push(e.target.result); if(--pending===0) mgr.render(); };
-      reader.onerror = ()=>{ toast('사진을 불러오지 못했어요'); if(--pending===0) mgr.render(); };
-      reader.readAsDataURL(file);
-    });
     input.value = '';
+    for(const file of toRead){
+      try{
+        const compressed = await compressImage(file);
+        mgr.photos.push(compressed);
+        mgr.render();
+      }catch(e){
+        toast('사진을 불러오지 못했어요');
+      }
+    }
   };
   mgr.remove = function(idx){ mgr.photos.splice(idx,1); mgr.render(); };
   mgr.reset = function(){ mgr.photos = []; mgr.render(); };
