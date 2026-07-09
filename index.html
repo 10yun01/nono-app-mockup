@@ -163,6 +163,24 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
 </style>
 </head>
 <body>
+<script type="module">
+  // ---- Firebase (Firestore) — real cloud database for the shared product catalog ----
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
+  import { getFirestore, doc, getDoc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
+  const firebaseConfig = {
+    apiKey: "AIzaSyCRLTkQRLlLcdxyymtTAZGwUSLKBUIYzas",
+    authDomain: "nonoapp-40766.firebaseapp.com",
+    projectId: "nonoapp-40766",
+    storageBucket: "nonoapp-40766.firebasestorage.app",
+    messagingSenderId: "38054974117",
+    appId: "1:38054974117:web:7afdce04e57281e22f334c",
+    measurementId: "G-3FTFXP9DPZ"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  window.__fb = { db, doc, getDoc, setDoc, onSnapshot };
+  window.dispatchEvent(new Event('firebaseReady'));
+</script>
 <div class="phone" id="phone">
 
   <!-- ============ SPLASH ============ -->
@@ -1006,16 +1024,24 @@ function saveDeletedProducts(){
 function activeProductSeed(){
   return productSeed.filter(p=>!deletedProductIds.includes(p.id));
 }
-// ---- Shared product catalog ----
-// Unlike chats/stats/points (which are per-account), the product listings themselves
-// are a shared marketplace: anyone who registers an item makes it visible to every
-// account in this browser (localStorage is per-browser, not a real server — so "sharing"
-// here means "shared across accounts on this device", not across different devices).
-const SHARED_PRODUCTS_KEY = 'nono_shared_products';
-function loadSharedProducts(){
+// ---- Shared product catalog (REAL cloud database via Firebase Firestore) ----
+// Unlike localStorage, this is backed by an actual server (Google Cloud Firestore):
+// any account, on any device, browser, or tab sees the same data. All registered
+// listings live in one Firestore document that every visitor reads/writes.
+function waitForFirebase(){
+  return new Promise(resolve=>{
+    if(window.__fb){ resolve(); return; }
+    window.addEventListener('firebaseReady', ()=>resolve(), {once:true});
+  });
+}
+async function loadSharedProducts(){
   let saved = null;
-  try{ saved = JSON.parse(localStorage.getItem(SHARED_PRODUCTS_KEY) || 'null'); }
-  catch(e){ saved = null; }
+  try{
+    await waitForFirebase();
+    const { db, doc, getDoc } = window.__fb;
+    const snap = await getDoc(doc(db, 'nono', 'products'));
+    saved = snap.exists() ? snap.data().items : null;
+  } catch(e){ saved = null; console.warn('Firestore load failed, falling back to seed only:', e); }
   if(saved && Array.isArray(saved) && saved.length){
     // 시드 상품은 항상 최신 삭제 목록을 반영하고, 저장된 배열에서 유저 등록 상품만 이어붙인다
     const userItems = saved.filter(p=>p.id.startsWith('user') && !deletedProductIds.includes(p.id));
@@ -1024,13 +1050,43 @@ function loadSharedProducts(){
     products = activeProductSeed().map(p=>({...p}));
   }
 }
-function saveSharedProducts(){
+async function saveSharedProducts(){
   // favorited는 계정별 값이라 공용 저장소에는 포함하지 않는다 (각자 계정 데이터에 따로 저장됨)
   const toSave = products.map(p=>{ const {favorited, ...rest} = p; return rest; });
-  try{ localStorage.setItem(SHARED_PRODUCTS_KEY, JSON.stringify(toSave)); }
-  catch(e){ /* storage unavailable — new listings just won't be shared across accounts */ }
+  try{
+    await waitForFirebase();
+    const { db, doc, setDoc } = window.__fb;
+    await setDoc(doc(db, 'nono', 'products'), { items: toSave, updatedAt: new Date().toISOString() });
+  } catch(e){
+    console.warn('Firestore save failed:', e);
+    toast('⚠️ 클라우드 저장에 실패했어요. Firestore 보안 규칙을 확인해주세요');
+  }
 }
 let products = [];
+// Real-time listener: when ANY account changes the catalog (anywhere, any device),
+// Firestore pushes the update to every open tab automatically — no polling needed.
+function startProductsLiveSync(){
+  waitForFirebase().then(()=>{
+    const { db, doc, onSnapshot } = window.__fb;
+    onSnapshot(doc(db, 'nono', 'products'), (snap)=>{
+      if(!currentUser || !snap.exists()) return;
+      const saved = snap.data().items || [];
+      const userItems = saved.filter(p=>p.id.startsWith('user') && !deletedProductIds.includes(p.id));
+      let favSet = new Set();
+      try{
+        const raw = JSON.parse(localStorage.getItem(ACCOUNT_DATA_PREFIX+currentUser.email) || 'null');
+        favSet = new Set((raw && raw.favorited) || []);
+      }catch(err){}
+      const before = JSON.stringify(products.map(p=>({id:p.id, status:p.status})));
+      products = activeProductSeed().map(p=>({...p, favorited:favSet.has(p.id)})).concat(userItems.map(p=>({...p, favorited:favSet.has(p.id)})));
+      const after = JSON.stringify(products.map(p=>({id:p.id, status:p.status})));
+      if(before !== after && before !== '[]'){
+        renderGrids();
+        toast('🔄 상품 목록이 실시간으로 업데이트됐어요');
+      }
+    });
+  });
+}
 // Seller directory: display info only (name/avatar). No chat room exists until
 // the user actually starts a transaction (거래) with that seller.
 const sellers = {
@@ -1139,13 +1195,13 @@ function goToExchange(){
   currentExchangeProductId = currentProductId;
   nav('exchange');
 }
-function deleteProduct(id){
+async function deleteProduct(id){
   if(!(currentUser && currentUser.isAdmin)){ toast('운영자만 상품을 삭제할 수 있어요'); return; }
   if(!id) return;
   if(!deletedProductIds.includes(id)) deletedProductIds.push(id);
   saveDeletedProducts();
   products = products.filter(p=>p.id!==id);
-  saveSharedProducts();
+  await saveSharedProducts();
   renderGrids();
   toast('상품이 삭제됐어요 🗑️');
   nav('home');
@@ -1334,7 +1390,7 @@ function logoutUser(){
 // Each account (regular or admin) keeps its own saved data, keyed by email,
 // so logging out and back in restores exactly where that account left off.
 const ACCOUNT_DATA_PREFIX = 'nono_data_';
-function saveAccountData(email){
+async function saveAccountData(email){
   if(!email) return;
   const data = {
     chats, stats, myPoints,
@@ -1343,9 +1399,9 @@ function saveAccountData(email){
   };
   try{ localStorage.setItem(ACCOUNT_DATA_PREFIX+email, JSON.stringify(data)); }
   catch(e){ /* storage unavailable — this account's activity just won't persist */ }
-  saveSharedProducts(); // 상품 목록은 공용이라 매번 함께 저장 (다른 계정에서도 즉시 보이도록)
+  await saveSharedProducts(); // 상품 목록은 진짜 클라우드(Firestore)라 다른 계정에서도 즉시 보임
 }
-function loadAccountData(email){
+async function loadAccountData(email){
   let data = null;
   try{ data = JSON.parse(localStorage.getItem(ACCOUNT_DATA_PREFIX+email) || 'null'); }
   catch(e){ data = null; }
@@ -1353,7 +1409,7 @@ function loadAccountData(email){
     chats = data.chats || [];
     stats = Object.assign({transactions:0,registered:0,co2Saved:0,reviews:0,pointExchanges:0,profileCompleted:false,adminDealDone:false}, data.stats||{});
     myPoints = typeof data.myPoints === 'number' ? data.myPoints : 0;
-    loadSharedProducts(); // 전체 계정이 공유하는 상품 목록 (내가 등록한 것 포함, 모두가 볼 수 있음)
+    await loadSharedProducts(); // 전체 계정이 공유하는 상품 목록 (내가 등록한 것 포함, 모두가 볼 수 있음)
     const favSet = new Set(data.favorited||[]);
     products = products.map(p=>({...p, favorited:favSet.has(p.id)}));
     recentSearches = data.recentSearches || [];
@@ -1362,7 +1418,7 @@ function loadAccountData(email){
     chats = [];
     stats = {transactions:0,registered:0,co2Saved:0,reviews:0,pointExchanges:0,profileCompleted:false,adminDealDone:false};
     myPoints = 0;
-    loadSharedProducts();
+    await loadSharedProducts();
     products = products.map(p=>({...p, favorited:false}));
     recentSearches = [];
   }
@@ -1428,13 +1484,14 @@ function saveAdminInbox(inbox){
   catch(e){ /* storage unavailable — inquiry just won't reach the admin inbox */ }
 }
 
-function completeLogin(user){
+async function completeLogin(user){
   if(!user.avatar) user.avatar = '🙂';
   currentUser = user;
   const nameEl = document.getElementById('mypageUserName');
   if(nameEl) nameEl.textContent = user.name + '님';
   renderAvatarInto('mypageUserAvatar', user.avatar, user.avatarPhoto);
-  loadAccountData(user.email); // 이 계정에 저장된 활동 데이터 복원 (없으면 빈 상태)
+  toast('☁️ 데이터를 불러오고 있어요...');
+  await loadAccountData(user.email); // 이 계정에 저장된 활동 데이터 복원 (없으면 빈 상태)
   toast(`${user.name}님 환영합니다 🌱`);
   stack = ['home'];
   document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
@@ -1864,8 +1921,8 @@ function applyAdminStats(){
   toast('값이 적용됐어요 ✅');
 }
 
-function resetAllData(){
-  loadSharedProducts(); // 공용 상품 목록은 건드리지 않고 최신 상태로 재동기화만 함
+async function resetAllData(){
+  await loadSharedProducts(); // 공용 상품 목록은 건드리지 않고 최신 상태로 재동기화만 함
   products = products.map(p=>({...p, favorited:false}));
   chats = [];
   currentChatId = null;
@@ -1971,7 +2028,7 @@ function submitSupportInquiry(){
   updateSupportBtn();
   toast('문의가 등록되었어요 🌱 채팅 탭에서 확인할 수 있어요');
 }
-function postExchangeMessageToSeller(p, userMsg, viaLabel){
+async function postExchangeMessageToSeller(p, userMsg, viaLabel){
   if(!p) return;
   const sellerId = p.seller || 'jiyeon'; // [추측] 판매자 매핑이 없는 상품은 기본 상대(지연)로 연결
   const myId = currentUser ? (currentUser.isAdmin ? 'admin' : currentUser.email) : null;
@@ -1990,7 +2047,7 @@ function postExchangeMessageToSeller(p, userMsg, viaLabel){
     saveExchangeRequests();
     const liveProduct = products.find(x=>x.id===p.id);
     if(liveProduct) liveProduct.status = 'pending';
-    saveSharedProducts();
+    await saveSharedProducts();
     syncTradeChatsFor(myId); // 내 채팅 목록에 즉시 반영
   } else {
     // 봇 판매자와의 거래는 승인할 실제 계정이 없으므로 기존처럼 즉시 성사 처리 (내 로컬 채팅에만 존재)
@@ -2008,7 +2065,7 @@ function postExchangeMessageToSeller(p, userMsg, viaLabel){
     updateProgress();
     const liveProduct = products.find(x=>x.id===p.id);
     if(liveProduct) liveProduct.status = 'traded';
-    saveSharedProducts();
+    await saveSharedProducts();
     c.product.status = '교환 완료';
     c.messages.push({from:'system', text:`🔔 [${p.name}] ${viaLabel} 교환이 완료됐어요!`});
     c.time = '방금';
@@ -2060,7 +2117,7 @@ function renderChatExtra(){
     el.innerHTML = '';
   }
 }
-function acceptExchangeRequest(reqId){
+async function acceptExchangeRequest(reqId){
   const req = exchangeRequests.find(r=>r.id===reqId);
   if(!req || req.status!=='pending') return;
   req.status = 'accepted';
@@ -2068,7 +2125,7 @@ function acceptExchangeRequest(reqId){
   saveExchangeRequests();
   const liveProduct = products.find(x=>x.id===req.productId);
   if(liveProduct) liveProduct.status = 'traded';
-  saveSharedProducts();
+  await saveSharedProducts();
   bumpAccountStats(req.requesterId, { transactions:1, co2Saved:2.3 }); // 요청자 몫 (로그인 중이 아닐 수 있음)
   stats.transactions += 1; stats.co2Saved = +(stats.co2Saved + 2.3).toFixed(1); updateProgress(); // 나(주인) 몫
   const myId = currentUser ? (currentUser.isAdmin?'admin':currentUser.email) : null;
@@ -2080,7 +2137,7 @@ function acceptExchangeRequest(reqId){
   if(currentUser) saveAccountData(currentUser.email);
   toast('교환을 수락했어요 🎉');
 }
-function declineExchangeRequest(reqId){
+async function declineExchangeRequest(reqId){
   const req = exchangeRequests.find(r=>r.id===reqId);
   if(!req || req.status!=='pending') return;
   req.status = 'declined';
@@ -2088,7 +2145,7 @@ function declineExchangeRequest(reqId){
   saveExchangeRequests();
   const liveProduct = products.find(x=>x.id===req.productId);
   if(liveProduct) liveProduct.status = 'available';
-  saveSharedProducts();
+  await saveSharedProducts();
   const myId = currentUser ? (currentUser.isAdmin?'admin':currentUser.email) : null;
   syncTradeChatsFor(myId);
   renderChatList();
@@ -2345,7 +2402,7 @@ document.addEventListener('click', e=>{
 });
 
 const categoryEmoji = {"상의":"👕","아우터":"🧥","하의":"👖","원피스":"👗","가방":"👜"};
-function registerProduct(){
+async function registerProduct(){
   const name = document.getElementById('regName').value.trim();
   if(!name){ toast('상품명을 입력해주세요'); return; }
   const cat = document.getElementById('regCategory').value || "상의";
@@ -2532,49 +2589,18 @@ renderPoints();
 loadAccounts();
 syncAdminSellerName();
 loadDeletedProducts();
-loadSharedProducts();
 loadExchangeRequests();
 renderPageViewerList();
-updateProgress();
 
-// ---- Restore session on page load/refresh (persists login + last screen) ----
-// ---- Cross-tab sync ----
-// localStorage writes in one tab don't automatically update another open tab's
-// in-memory JS state. If the user tests with two tabs open at once (e.g. one
-// logged in as each account), this listener catches changes made in the OTHER
-// tab and refreshes this tab's product list live, without needing a manual reload.
-window.addEventListener('storage', (e)=>{
-  if(!currentUser) return;
-  if(e.key === SHARED_PRODUCTS_KEY || e.key === DELETED_PRODUCTS_KEY){
-    loadDeletedProducts();
-    const myId = currentUser.isAdmin ? 'admin' : currentUser.email;
-    loadSharedProducts();
-    // 이 계정의 즐겨찾기 상태를 다시 입혀준다 (공용 상품 목록만 새로고침되고 내 즐겨찾기는 유지)
-    let favIds = [];
-    try{
-      const raw = JSON.parse(localStorage.getItem(ACCOUNT_DATA_PREFIX+currentUser.email) || 'null');
-      favIds = (raw && raw.favorited) || [];
-    }catch(err){}
-    const favSet = new Set(favIds);
-    products = products.map(p=>({...p, favorited:favSet.has(p.id)}));
-    renderGrids();
-    toast('🔄 상품 목록이 새로 업데이트됐어요');
-  }
-  if(e.key === EXCHANGE_REQUESTS_KEY){
-    loadExchangeRequests();
-    const myId = currentUser.isAdmin ? 'admin' : currentUser.email;
-    syncTradeChatsFor(myId);
-    renderChatList();
-    if(currentChatId) renderChatExtra();
-  }
-});
+async function initAndRestoreSession(){
+  await loadSharedProducts(); // 스플래시/로그인 화면에서도 최신 공용 상품으로 시작
+  updateProgress();
 
-(function restoreSession(){
   let saved = null;
   try{ saved = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); }catch(e){ saved = null; }
   if(saved && saved.user){
     currentUser = saved.user;
-    loadAccountData(currentUser.email); // ★ 핵심 수정: 로그인 상태만 복원하고 실제 데이터(채팅·통계·포인트·상품)는 복원하지 않던 버그
+    await loadAccountData(currentUser.email); // ★ 핵심 수정: 로그인 상태만 복원하고 실제 데이터는 복원하지 않던 버그
     const nameEl = document.getElementById('mypageUserName');
     if(nameEl) nameEl.textContent = currentUser.name + '님';
     renderAvatarInto('mypageUserAvatar', currentUser.avatar, currentUser.avatarPhoto);
@@ -2606,7 +2632,9 @@ window.addEventListener('storage', (e)=>{
     }
   }
   // else: no saved session -> app stays on its default initial screen (splash)
-})();
+  startProductsLiveSync(); // Firestore 실시간 구독 시작 (다른 계정/기기의 변경사항이 자동 반영됨)
+}
+initAndRestoreSession();
 </script>
 </body>
 </html>
