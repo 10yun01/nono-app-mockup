@@ -399,23 +399,29 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
   <!-- ============ AI 추천 ============ -->
   <div class="screen" id="screen-ai">
     <div class="top-spacer"></div>
-    <div class="header" style="justify-content:space-between"><span class="back" onclick="back()">←</span><h1>AI 추천</h1><span style="color:var(--gray);font-size:18px">⚙️</span></div>
+    <div class="header" style="justify-content:space-between"><span class="back" onclick="back()">←</span><h1>AI 추천</h1><span style="color:var(--gray);font-size:16px">🎚️</span></div>
     <div class="content">
-      <div class="grad-card" style="border-radius:16px;padding:16px;display:flex;gap:14px;align-items:center">
-        <div style="font-size:36px">🤖</div>
-        <div><span style="background:#fff;border-radius:10px;padding:2px 8px;font-size:9px;font-weight:700;color:var(--green)">AI 추천</span>
-        <div style="font-weight:700;font-size:14px;margin-top:4px">당신의 취향에 딱 맞는<br>의류를 추천해드려요!</div>
-        <div style="font-size:10px;color:var(--gray);margin-top:4px">스타일, 색상, 계절을 분석해 제안합니다.</div></div>
+      <div class="grad-card" style="border-radius:16px;padding:18px;display:flex;align-items:center;gap:10px;position:relative;overflow:hidden">
+        <div style="flex:1.5">
+          <span style="background:#fff;border-radius:10px;padding:3px 9px;font-size:9px;font-weight:700;color:var(--green)">✨ AI 추천</span>
+          <div style="font-weight:700;font-size:15px;margin-top:8px;line-height:1.35">당신의 취향에 딱 맞는<br>의류를 추천해드려요!</div>
+          <div style="font-size:10px;color:var(--gray);margin-top:6px;line-height:1.5">스타일, 색상, 계절을 분석하여<br>맞춤 아이템을 제안합니다.</div>
+        </div>
+        <div style="flex-shrink:0;text-align:center;font-size:50px;position:relative">
+          <span style="position:absolute;top:-6px;left:-10px;font-size:14px">✨</span>
+          <span style="position:absolute;top:2px;right:-6px;font-size:11px">✨</span>
+          🤖<div style="font-size:20px;margin-top:-10px">👔</div>
+        </div>
       </div>
       <div class="section-row"><h2 class="section" style="margin:18px 0 8px">나만을 위한 추천</h2><a onclick="nav('search')">더보기 ></a></div>
       <div class="grid4" id="aiGrid"></div>
 
       <h2 class="section">스타일 추천</h2>
-      <div class="grid4">
-        <div class="cat-item"><div class="circle" style="font-size:22px">👔</div><div class="label">미니멀</div></div>
-        <div class="cat-item"><div class="circle" style="font-size:22px">🧢</div><div class="label">캐주얼</div></div>
-        <div class="cat-item"><div class="circle" style="font-size:22px">🎀</div><div class="label">러블리</div></div>
-        <div class="cat-item"><div class="circle" style="font-size:22px">👟</div><div class="label">스트릿</div></div>
+      <div class="grid4" id="styleGrid">
+        <div class="product-card" onclick="openCategory('전체')"><div class="thumb" style="background:var(--imggray);font-size:30px">👚👖👜</div><div class="name" style="text-align:center;font-weight:600">미니멀</div></div>
+        <div class="product-card" onclick="openCategory('전체')"><div class="thumb" style="background:var(--imggray);font-size:30px">🧥🧢👟</div><div class="name" style="text-align:center;font-weight:600">캐주얼</div></div>
+        <div class="product-card" onclick="openCategory('전체')"><div class="thumb" style="background:var(--imggray);font-size:30px">🩱👗👝</div><div class="name" style="text-align:center;font-weight:600">러블리</div></div>
+        <div class="product-card" onclick="openCategory('전체')"><div class="thumb" style="background:var(--imggray);font-size:30px">🖤🧢👟</div><div class="name" style="text-align:center;font-weight:600">스트릿</div></div>
       </div>
 
       <div class="card" style="background:var(--pale);margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:10px">
