@@ -1181,15 +1181,47 @@ let currentExchangeProductId = null;
 // Bot sellers (jiyeon/sumin/haneul/junho) auto-accept instantly, same as before (they're NPCs).
 // But when the seller is a REAL account (admin, or any registered user's own listing),
 // a request is created instead and only completes once that account explicitly accepts it.
-const EXCHANGE_REQUESTS_KEY = 'nono_exchange_requests';
+// Like products, each request is its own Firestore document — otherwise a request made on
+// one device would never be visible when the other party logs in from a different device.
 let exchangeRequests = [];
-function loadExchangeRequests(){
-  try{ exchangeRequests = JSON.parse(localStorage.getItem(EXCHANGE_REQUESTS_KEY) || '[]'); }
-  catch(e){ exchangeRequests = []; }
+async function loadExchangeRequests(){
+  try{
+    await waitForFirebase();
+    const { db, collection, getDocs } = window.__fb;
+    const snap = await getDocs(collection(db, 'exchangeRequests'));
+    exchangeRequests = [];
+    snap.forEach(docSnap=> exchangeRequests.push(docSnap.data()));
+  } catch(e){ exchangeRequests = []; console.warn('Firestore exchangeRequests load failed:', e); }
 }
-function saveExchangeRequests(){
-  try{ localStorage.setItem(EXCHANGE_REQUESTS_KEY, JSON.stringify(exchangeRequests)); }
-  catch(e){ /* storage unavailable — requests just won't sync across accounts */ }
+async function saveOneRequestToCloud(req){
+  try{
+    await waitForFirebase();
+    const { db, doc, setDoc } = window.__fb;
+    await setDoc(doc(db, 'exchangeRequests', req.id), req);
+  } catch(e){
+    console.warn('Firestore exchangeRequest save failed:', e);
+    toast('⚠️ 교환 신청 전송에 실패했어요. 네트워크를 확인해주세요');
+  }
+}
+function startRequestsLiveSync(){
+  waitForFirebase().then(()=>{
+    const { db, collection, onSnapshot } = window.__fb;
+    onSnapshot(collection(db, 'exchangeRequests'), (snap)=>{
+      if(!currentUser) return;
+      const before = JSON.stringify(exchangeRequests.map(r=>({id:r.id, status:r.status, msgCount:(r.messages||[]).length})));
+      exchangeRequests = [];
+      snap.forEach(docSnap=> exchangeRequests.push(docSnap.data()));
+      const after = JSON.stringify(exchangeRequests.map(r=>({id:r.id, status:r.status, msgCount:(r.messages||[]).length})));
+      if(before !== after){
+        const myId = currentUser.isAdmin ? 'admin' : currentUser.email;
+        syncTradeChatsFor(myId);
+        renderChatList();
+        if(currentChatId) { const cc = chats.find(x=>x.id===currentChatId); if(cc){ renderChatMessages(cc); renderChatExtra(); } }
+        const newPending = exchangeRequests.filter(r=>r.ownerId===myId && r.status==='pending').length;
+        if(newPending > 0 && before !== '[]') toast(`📦 교환 신청 알림이 도착했어요! (${newPending}건 대기중)`);
+      }
+    });
+  });
 }
 function isRealSeller(sellerId){
   return sellerId === 'admin' || registeredAccounts.some(a=>a.email===sellerId);
@@ -1479,7 +1511,7 @@ async function loadAccountData(email){
       });
     }
   }
-  loadExchangeRequests();
+  await loadExchangeRequests();
   syncTradeChatsFor(email === ADMIN_EMAIL ? 'admin' : email); // 내가 요청자/주인인 실거래 요청을 채팅으로 동기화
   const myIdForNotif = email === ADMIN_EMAIL ? 'admin' : email;
   const pendingForMe = exchangeRequests.filter(r=>r.ownerId===myIdForNotif && r.status==='pending').length;
@@ -2071,7 +2103,7 @@ async function postExchangeMessageToSeller(p, userMsg, viaLabel){
     }
     if(userMsg) req.messages.push({sender:'requester', text:userMsg});
     req.messages.push({sender:'system', text:`🔔 [${p.name}] ${viaLabel} 교환 신청을 보냈어요. 상대방이 수락하면 거래가 완료돼요.`});
-    saveExchangeRequests();
+    await saveOneRequestToCloud(req);
     const liveProduct = products.find(x=>x.id===p.id);
     if(liveProduct) liveProduct.status = 'pending';
     await updateProductStatusInCloud(p.id, 'pending');
@@ -2149,7 +2181,7 @@ async function acceptExchangeRequest(reqId){
   if(!req || req.status!=='pending') return;
   req.status = 'accepted';
   req.messages.push({sender:'system', text:`🎉 [${req.productName}] 교환 신청을 수락했어요! 거래가 완료됐어요.`});
-  saveExchangeRequests();
+  await saveOneRequestToCloud(req);
   const liveProduct = products.find(x=>x.id===req.productId);
   if(liveProduct) liveProduct.status = 'traded';
   await updateProductStatusInCloud(req.productId, 'traded');
@@ -2169,7 +2201,7 @@ async function declineExchangeRequest(reqId){
   if(!req || req.status!=='pending') return;
   req.status = 'declined';
   req.messages.push({sender:'system', text:`😥 [${req.productName}] 교환 신청이 거절됐어요.`});
-  saveExchangeRequests();
+  await saveOneRequestToCloud(req);
   const liveProduct = products.find(x=>x.id===req.productId);
   if(liveProduct) liveProduct.status = 'available';
   await updateProductStatusInCloud(req.productId, 'available');
@@ -2544,7 +2576,7 @@ function sendMsg(){
     const req = exchangeRequests.find(r=>r.id===c._tradeReqId);
     if(req){
       req.messages.push({sender: c._iAmOwner?'owner':'requester', text});
-      saveExchangeRequests();
+      saveOneRequestToCloud(req);
     }
   }
 }
@@ -2657,40 +2689,51 @@ async function initAndRestoreSession(){
   let saved = null;
   try{ saved = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); }catch(e){ saved = null; }
   if(saved && saved.user){
-    currentUser = saved.user;
-    await loadAccountData(currentUser.email); // ★ 핵심 수정: 로그인 상태만 복원하고 실제 데이터는 복원하지 않던 버그
-    const nameEl = document.getElementById('mypageUserName');
-    if(nameEl) nameEl.textContent = currentUser.name + '님';
-    renderAvatarInto('mypageUserAvatar', currentUser.avatar, currentUser.avatarPhoto);
-    const targetId = saved.screen && document.getElementById('screen-'+saved.screen) ? saved.screen : 'home';
-    document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
-    document.getElementById('screen-'+targetId).classList.add('active');
-    stack = targetId === 'home' ? ['home'] : ['home', targetId];
-    updateProgress();
-    if(targetId === 'settings'){
-      loadAccounts();
-      syncAdminSellerName();
-      const panel = document.getElementById('adminPanel');
-      const testTools = document.getElementById('testToolsSection');
-      const isAdminUser = !!(currentUser && currentUser.isAdmin);
-      if(testTools) testTools.style.display = isAdminUser ? '' : 'none';
-      const withdrawBtn = document.getElementById('withdrawBtn');
-      const withdrawNotice = document.getElementById('withdrawAdminNotice');
-      if(withdrawBtn) withdrawBtn.style.display = isAdminUser ? 'none' : '';
-      if(withdrawNotice) withdrawNotice.style.display = isAdminUser ? '' : 'none';
-      if(panel){
-        panel.style.display = isAdminUser ? '' : 'none';
-        if(isAdminUser){
-          document.getElementById('adminTransactionsInput').value = stats.transactions;
-          document.getElementById('adminPointsInput').value = myPoints;
-          document.getElementById('adminReviewsInput').value = stats.reviews;
-          lockAccountList();
+    try{
+      currentUser = saved.user;
+      await loadAccountData(currentUser.email); // ★ 핵심 수정: 로그인 상태만 복원하고 실제 데이터는 복원하지 않던 버그
+      const nameEl = document.getElementById('mypageUserName');
+      if(nameEl) nameEl.textContent = currentUser.name + '님';
+      renderAvatarInto('mypageUserAvatar', currentUser.avatar, currentUser.avatarPhoto);
+      const targetId = saved.screen && document.getElementById('screen-'+saved.screen) ? saved.screen : 'home';
+      document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
+      document.getElementById('screen-'+targetId).classList.add('active');
+      stack = targetId === 'home' ? ['home'] : ['home', targetId];
+      updateProgress();
+      if(targetId === 'settings'){
+        loadAccounts();
+        syncAdminSellerName();
+        const panel = document.getElementById('adminPanel');
+        const testTools = document.getElementById('testToolsSection');
+        const isAdminUser = !!(currentUser && currentUser.isAdmin);
+        if(testTools) testTools.style.display = isAdminUser ? '' : 'none';
+        const withdrawBtn = document.getElementById('withdrawBtn');
+        const withdrawNotice = document.getElementById('withdrawAdminNotice');
+        if(withdrawBtn) withdrawBtn.style.display = isAdminUser ? 'none' : '';
+        if(withdrawNotice) withdrawNotice.style.display = isAdminUser ? '' : 'none';
+        if(panel){
+          panel.style.display = isAdminUser ? '' : 'none';
+          if(isAdminUser){
+            document.getElementById('adminTransactionsInput').value = stats.transactions;
+            document.getElementById('adminPointsInput').value = myPoints;
+            document.getElementById('adminReviewsInput').value = stats.reviews;
+            lockAccountList();
+          }
         }
       }
+    } catch(e){
+      // 세션 복원 중 어딘가에서 오류가 나도 로그인 자체는 유지한다 (예전엔 여기서 조용히 실패하면
+      // 화면이 스플래시에 멈춰서 "새로고침하면 로그아웃된 것처럼" 보이는 문제가 있었음)
+      console.warn('Session restore had an error, but staying logged in:', e);
+      document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
+      const fallback = document.getElementById('screen-home');
+      if(fallback) fallback.classList.add('active');
+      stack = ['home'];
     }
   }
   // else: no saved session -> app stays on its default initial screen (splash)
   startProductsLiveSync(); // Firestore 실시간 구독 시작 (다른 계정/기기의 변경사항이 자동 반영됨)
+  startRequestsLiveSync(); // 교환 신청도 실시간으로 (다른 기기에서 보낸 신청이 바로 도착)
 }
 initAndRestoreSession();
 </script>
