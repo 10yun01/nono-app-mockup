@@ -278,6 +278,10 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
       <label class="field-label">비밀번호 확인</label>
       <input type="password" id="signupPwConfirm" placeholder="비밀번호를 다시 입력해주세요" oninput="checkSignupPw()">
       <p id="signupPwMsg" class="counter" style="text-align:left"></p>
+      <div class="card" style="background:var(--pale);margin-top:16px;display:flex;gap:8px;align-items:flex-start">
+        <span style="font-size:14px">🔒</span>
+        <div style="font-size:10.5px;color:#4C7A4B;line-height:1.6">가입한 계정 정보와 활동 내역(거래·채팅·포인트·등록 상품)은 안전하게 저장되어, 로그아웃하거나 새로고침해도 그대로 유지돼요.</div>
+      </div>
       <button class="btn" id="signupBtn" style="margin-top:20px" disabled onclick="submitSignup()">가입하기</button>
     </div>
   </div>
@@ -1392,6 +1396,11 @@ function loadAccountData(email){
   }
   loadExchangeRequests();
   syncTradeChatsFor(email === ADMIN_EMAIL ? 'admin' : email); // 내가 요청자/주인인 실거래 요청을 채팅으로 동기화
+  const myIdForNotif = email === ADMIN_EMAIL ? 'admin' : email;
+  const pendingForMe = exchangeRequests.filter(r=>r.ownerId===myIdForNotif && r.status==='pending').length;
+  if(pendingForMe > 0){
+    setTimeout(()=> toast(`📦 새로운 교환 신청이 ${pendingForMe}건 있어요! 채팅 탭을 확인해보세요`), 600);
+  }
   renderGrids();
   renderChatList();
   renderPoints();
@@ -2517,6 +2526,7 @@ updateProgress();
   try{ saved = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); }catch(e){ saved = null; }
   if(saved && saved.user){
     currentUser = saved.user;
+    loadAccountData(currentUser.email); // ★ 핵심 수정: 로그인 상태만 복원하고 실제 데이터(채팅·통계·포인트·상품)는 복원하지 않던 버그
     const nameEl = document.getElementById('mypageUserName');
     if(nameEl) nameEl.textContent = currentUser.name + '님';
     renderAvatarInto('mypageUserAvatar', currentUser.avatar, currentUser.avatarPhoto);
