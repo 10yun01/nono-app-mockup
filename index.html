@@ -1169,14 +1169,14 @@ function productCard(p, showHeart){
 }
 
 function renderGrids(){
-  document.getElementById('homeGrid').innerHTML = [products[1],products[2],products[3],products[4]].map(p=>productCard(p,p.id==='denim')).join('');
+  document.getElementById('homeGrid').innerHTML = [products[1],products[2],products[3],products[4]].filter(Boolean).map(p=>productCard(p,p.id==='denim')).join('');
   document.getElementById('aiGrid').innerHTML = products.slice(0,4).map(p=>productCard(p,true)).join('');
   const favorited = products.filter(p=>p.favorited);
   const wishGrid = document.getElementById('wishGrid');
   wishGrid.innerHTML = favorited.length
     ? favorited.map(p=>productCard(p,true)).join('')
     : '<p style="grid-column:1/-1;text-align:center;color:var(--gray);font-size:12px;margin-top:40px">아직 찜한 상품이 없어요</p>';
-  document.getElementById('recommendGrid').innerHTML = [products[6],products[7],products[8],products[0]].map(p=>productCard(p,false)).join('');
+  document.getElementById('recommendGrid').innerHTML = [products[6],products[7],products[8],products[0]].filter(Boolean).map(p=>productCard(p,false)).join('');
   const allGrid = document.getElementById('allProductsGrid');
   if(allGrid){
     allGrid.innerHTML = products.map(p=>productCard(p,false)).join('');
