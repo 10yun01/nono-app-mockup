@@ -1507,6 +1507,7 @@ async function loadAccountData(email){
   lastKnownLevel = null;
   if(email === ADMIN_EMAIL){
     // 운영자는 자기 개인 채팅(비어있음) 위에, 모든 이용자의 1:1 문의를 상담원 수신함처럼 병합해서 본다
+    chats = chats.filter(c=>!c.id.startsWith('inquiry_')); // 예전에 병합된 문의 항목을 먼저 제거해야 중복이 쌓이지 않음
     const inbox = loadAdminInbox();
     Object.keys(inbox).forEach(submitterEmail=>{
       const t = inbox[submitterEmail];
