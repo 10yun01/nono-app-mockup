@@ -350,7 +350,7 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
   <!-- ============ AI 추천 ============ -->
   <div class="screen" id="screen-ai">
     <div class="top-spacer"></div>
-    <div class="header"><span class="back" onclick="back()">←</span><h1>AI 추천</h1></div>
+    <div class="header" style="justify-content:space-between"><span class="back" onclick="back()">←</span><h1>AI 추천</h1><span style="color:var(--gray);font-size:18px">⚙️</span></div>
     <div class="content">
       <div class="grad-card" style="border-radius:16px;padding:16px;display:flex;gap:14px;align-items:center">
         <div style="font-size:36px">🤖</div>
@@ -358,7 +358,7 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
         <div style="font-weight:700;font-size:14px;margin-top:4px">당신의 취향에 딱 맞는<br>의류를 추천해드려요!</div>
         <div style="font-size:10px;color:var(--gray);margin-top:4px">스타일, 색상, 계절을 분석해 제안합니다.</div></div>
       </div>
-      <h2 class="section">나만을 위한 추천</h2>
+      <div class="section-row"><h2 class="section" style="margin:18px 0 8px">나만을 위한 추천</h2><a onclick="nav('search')">더보기 ></a></div>
       <div class="grid4" id="aiGrid"></div>
 
       <h2 class="section">스타일 추천</h2>
