@@ -1001,7 +1001,31 @@ function saveDeletedProducts(){
 function activeProductSeed(){
   return productSeed.filter(p=>!deletedProductIds.includes(p.id));
 }
-let products = activeProductSeed().map(p=>({...p}));
+// ---- Shared product catalog ----
+// Unlike chats/stats/points (which are per-account), the product listings themselves
+// are a shared marketplace: anyone who registers an item makes it visible to every
+// account in this browser (localStorage is per-browser, not a real server — so "sharing"
+// here means "shared across accounts on this device", not across different devices).
+const SHARED_PRODUCTS_KEY = 'nono_shared_products';
+function loadSharedProducts(){
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem(SHARED_PRODUCTS_KEY) || 'null'); }
+  catch(e){ saved = null; }
+  if(saved && Array.isArray(saved) && saved.length){
+    // 시드 상품은 항상 최신 삭제 목록을 반영하고, 저장된 배열에서 유저 등록 상품만 이어붙인다
+    const userItems = saved.filter(p=>p.id.startsWith('user') && !deletedProductIds.includes(p.id));
+    products = activeProductSeed().map(p=>({...p})).concat(userItems);
+  } else {
+    products = activeProductSeed().map(p=>({...p}));
+  }
+}
+function saveSharedProducts(){
+  // favorited는 계정별 값이라 공용 저장소에는 포함하지 않는다 (각자 계정 데이터에 따로 저장됨)
+  const toSave = products.map(p=>{ const {favorited, ...rest} = p; return rest; });
+  try{ localStorage.setItem(SHARED_PRODUCTS_KEY, JSON.stringify(toSave)); }
+  catch(e){ /* storage unavailable — new listings just won't be shared across accounts */ }
+}
+let products = [];
 // Seller directory: display info only (name/avatar). No chat room exists until
 // the user actually starts a transaction (거래) with that seller.
 const sellers = {
@@ -1064,6 +1088,48 @@ function openCategory(cat){
 
 let currentProductId = null;
 let currentExchangeProductId = null;
+// ---- Real exchange (trade) system ----
+// Bot sellers (jiyeon/sumin/haneul/junho) auto-accept instantly, same as before (they're NPCs).
+// But when the seller is a REAL account (admin, or any registered user's own listing),
+// a request is created instead and only completes once that account explicitly accepts it.
+const EXCHANGE_REQUESTS_KEY = 'nono_exchange_requests';
+let exchangeRequests = [];
+function loadExchangeRequests(){
+  try{ exchangeRequests = JSON.parse(localStorage.getItem(EXCHANGE_REQUESTS_KEY) || '[]'); }
+  catch(e){ exchangeRequests = []; }
+}
+function saveExchangeRequests(){
+  try{ localStorage.setItem(EXCHANGE_REQUESTS_KEY, JSON.stringify(exchangeRequests)); }
+  catch(e){ /* storage unavailable — requests just won't sync across accounts */ }
+}
+function isRealSeller(sellerId){
+  return sellerId === 'admin' || registeredAccounts.some(a=>a.email===sellerId);
+}
+function getSellerDisplay(sellerId){
+  if(sellers[sellerId]) return sellers[sellerId];
+  const acct = registeredAccounts.find(a=>a.email===sellerId);
+  if(acct) return { name:acct.name, avatar:acct.avatar||'🙂' };
+  return { name:'판매자', avatar:'🙂' };
+}
+// 지금 로그인해있지 않은 계정의 몫(거래 상대방)을 반영할 때 쓰는 헬퍼.
+// 로그인 중인 계정이면 라이브 상태를 바로 바꾸고, 아니면 저장된 데이터를 직접 찾아 수정한다.
+function bumpAccountStats(email, delta){
+  if(currentUser && currentUser.email === email){
+    stats.transactions += (delta.transactions||0);
+    stats.co2Saved = +(stats.co2Saved + (delta.co2Saved||0)).toFixed(1);
+    updateProgress();
+    saveAccountData(email);
+    return;
+  }
+  let raw = null;
+  try{ raw = JSON.parse(localStorage.getItem(ACCOUNT_DATA_PREFIX+email) || 'null'); }catch(e){ raw = null; }
+  if(!raw) raw = { chats:[], stats:{transactions:0,registered:0,co2Saved:0,reviews:0,pointExchanges:0,profileCompleted:false,adminDealDone:false}, myPoints:0, favorited:[], recentSearches:[] };
+  raw.stats = raw.stats || {};
+  raw.stats.transactions = (raw.stats.transactions||0) + (delta.transactions||0);
+  raw.stats.co2Saved = +(((raw.stats.co2Saved||0)) + (delta.co2Saved||0)).toFixed(1);
+  try{ localStorage.setItem(ACCOUNT_DATA_PREFIX+email, JSON.stringify(raw)); }catch(e){}
+}
+
 function goToExchange(){
   currentExchangeProductId = currentProductId;
   nav('exchange');
@@ -1074,6 +1140,7 @@ function deleteProduct(id){
   if(!deletedProductIds.includes(id)) deletedProductIds.push(id);
   saveDeletedProducts();
   products = products.filter(p=>p.id!==id);
+  saveSharedProducts();
   renderGrids();
   toast('상품이 삭제됐어요 🗑️');
   nav('home');
@@ -1104,7 +1171,7 @@ function renderProductDetail(){
   const thumbInner = (photoSrc, big) => `
     ${photoSrc ? `<img src="${photoSrc}" alt="${p.name}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:${big?'12px':'8px'}" onerror="this.remove()">` : p.emoji}
   `;
-  const registrantName = p.seller === 'me' ? (currentUser ? currentUser.name+' (나)' : '나') : ((sellers[p.seller] && sellers[p.seller].name) ? sellers[p.seller].name : (p.seller || '알 수 없음'));
+  const registrantName = p.seller === 'me' ? (currentUser ? currentUser.name+' (나)' : '나') : (currentUser && currentUser.email===p.seller ? currentUser.name+' (나)' : getSellerDisplay(p.seller).name);
   document.getElementById('pd-content').innerHTML = `
     <div class="thumb" style="width:100%;aspect-ratio:1/1;font-size:70px;border-radius:12px;background:#C8E6C9;position:relative">
       ${thumbInner(mainPhoto, true)}
@@ -1266,11 +1333,11 @@ function saveAccountData(email){
   const data = {
     chats, stats, myPoints,
     favorited: products.filter(p=>p.favorited).map(p=>p.id),
-    myProducts: products.filter(p=>p.id.startsWith('user')), // 사용자가 직접 등록한 상품은 시드에 없으므로 전체 객체를 저장
     recentSearches
   };
   try{ localStorage.setItem(ACCOUNT_DATA_PREFIX+email, JSON.stringify(data)); }
   catch(e){ /* storage unavailable — this account's activity just won't persist */ }
+  saveSharedProducts(); // 상품 목록은 공용이라 매번 함께 저장 (다른 계정에서도 즉시 보이도록)
 }
 function loadAccountData(email){
   let data = null;
@@ -1280,18 +1347,17 @@ function loadAccountData(email){
     chats = data.chats || [];
     stats = Object.assign({transactions:0,registered:0,co2Saved:0,reviews:0,pointExchanges:0,profileCompleted:false,adminDealDone:false}, data.stats||{});
     myPoints = typeof data.myPoints === 'number' ? data.myPoints : 0;
+    loadSharedProducts(); // 전체 계정이 공유하는 상품 목록 (내가 등록한 것 포함, 모두가 볼 수 있음)
     const favSet = new Set(data.favorited||[]);
-    products = activeProductSeed().map(p=>({...p, favorited:favSet.has(p.id)}));
-    if(data.myProducts && data.myProducts.length){
-      products = products.concat(data.myProducts.filter(p=>!deletedProductIds.includes(p.id))); // 삭제된 상품은 복원하지 않음
-    }
+    products = products.map(p=>({...p, favorited:favSet.has(p.id)}));
     recentSearches = data.recentSearches || [];
   } else {
-    // 이 계정으로는 처음 로그인 — 완전히 빈 상태에서 시작
+    // 이 계정으로는 처음 로그인 — 거래 기록은 비어있지만, 상품 목록 자체는 공용이라 그대로 보인다
     chats = [];
     stats = {transactions:0,registered:0,co2Saved:0,reviews:0,pointExchanges:0,profileCompleted:false,adminDealDone:false};
     myPoints = 0;
-    products = activeProductSeed().map(p=>({...p, favorited:false}));
+    loadSharedProducts();
+    products = products.map(p=>({...p, favorited:false}));
     recentSearches = [];
   }
   currentChatId = null;
@@ -1324,6 +1390,8 @@ function loadAccountData(email){
       });
     }
   }
+  loadExchangeRequests();
+  syncTradeChatsFor(email === ADMIN_EMAIL ? 'admin' : email); // 내가 요청자/주인인 실거래 요청을 채팅으로 동기화
   renderGrids();
   renderChatList();
   renderPoints();
@@ -1771,7 +1839,8 @@ function applyAdminStats(){
 }
 
 function resetAllData(){
-  products = activeProductSeed().map(p=>({...p}));
+  loadSharedProducts(); // 공용 상품 목록은 건드리지 않고 최신 상태로 재동기화만 함
+  products = products.map(p=>({...p, favorited:false}));
   chats = [];
   currentChatId = null;
   myPoints = 0;
@@ -1782,7 +1851,7 @@ function resetAllData(){
   renderPoints();
   updateProgress();
   if(currentUser) saveAccountData(currentUser.email);
-  toast('테스트 데이터가 초기화됐어요 🔄');
+  toast('내 테스트 데이터가 초기화됐어요 🔄 (공용 상품 목록은 유지됩니다)');
 }
 
 function renderPoints(){
@@ -1879,31 +1948,131 @@ function submitSupportInquiry(){
 function postExchangeMessageToSeller(p, userMsg, viaLabel){
   if(!p) return;
   const sellerId = p.seller || 'jiyeon'; // [추측] 판매자 매핑이 없는 상품은 기본 상대(지연)로 연결
-  let c = chats.find(x=>x.id===sellerId);
-  if(!c){
-    // 거래(교환)를 처음 시작하는 순간 채팅방을 새로 생성한다
-    const sellerInfo = sellers[sellerId] || {name:"판매자", avatar:"🙂"};
-    c = {
-      id: sellerId,
-      name: sellerInfo.name,
-      avatar: sellerInfo.avatar,
-      time: "방금",
-      badge: 0,
-      product: {emoji:p.emoji, name:p.name, price:p.price, status:"교환 신청중"},
-      messages: []
-    };
-    chats.unshift(c);
+  const myId = currentUser ? (currentUser.isAdmin ? 'admin' : currentUser.email) : null;
+
+  if(isRealSeller(sellerId) && sellerId !== myId){
+    // 실제 계정과의 거래: 요청 자체가 공용 저장소에 저장되는 "공유 대화방" 역할을 한다 (문의 시스템과 동일한 방식)
+    let req = exchangeRequests.find(r=>r.productId===p.id && r.requesterId===myId && r.status==='pending');
+    if(!req){
+      req = { id:'req'+Date.now(), productId:p.id, productName:p.name, productEmoji:p.emoji, productPrice:p.price,
+              requesterId:myId, requesterName:currentUser.name,
+              ownerId:sellerId, status:'pending', createdAt:new Date().toISOString(), messages:[] };
+      exchangeRequests.push(req);
+    }
+    if(userMsg) req.messages.push({sender:'requester', text:userMsg});
+    req.messages.push({sender:'system', text:`🔔 [${p.name}] ${viaLabel} 교환 신청을 보냈어요. 상대방이 수락하면 거래가 완료돼요.`});
+    saveExchangeRequests();
+    const liveProduct = products.find(x=>x.id===p.id);
+    if(liveProduct) liveProduct.status = 'pending';
+    saveSharedProducts();
+    syncTradeChatsFor(myId); // 내 채팅 목록에 즉시 반영
+  } else {
+    // 봇 판매자와의 거래는 승인할 실제 계정이 없으므로 기존처럼 즉시 성사 처리 (내 로컬 채팅에만 존재)
+    let c = chats.find(x=>x.id===sellerId);
+    if(!c){
+      const sellerInfo = getSellerDisplay(sellerId);
+      c = { id:sellerId, name:sellerInfo.name, avatar:sellerInfo.avatar, time:"방금", badge:0,
+            product:{emoji:p.emoji, name:p.name, price:p.price, status:"교환 신청중"}, messages:[] };
+      chats.unshift(c);
+    }
+    if(userMsg) c.messages.push({from:'me', text:userMsg});
+    stats.transactions += 1;
+    stats.co2Saved = +(stats.co2Saved + 2.3).toFixed(1); // [샘플 데이터] 거래 1건당 추정 절감량
+    if(sellerId === 'admin') stats.adminDealDone = true;
+    updateProgress();
+    const liveProduct = products.find(x=>x.id===p.id);
+    if(liveProduct) liveProduct.status = 'traded';
+    saveSharedProducts();
+    c.product.status = '교환 완료';
+    c.messages.push({from:'system', text:`🔔 [${p.name}] ${viaLabel} 교환이 완료됐어요!`});
+    c.time = '방금';
   }
-  if(userMsg) c.messages.push({from:'me', text:userMsg});
-  stats.transactions += 1;
-  stats.co2Saved = +(stats.co2Saved + 2.3).toFixed(1); // [샘플 데이터] 거래 1건당 추정 절감량
-  if(sellerId === 'admin') stats.adminDealDone = true;
-  updateProgress();
-  c.messages.push({from:'system', text:`🔔 [${p.name}] ${viaLabel} 교환 신청을 보냈어요. 상대방의 수락을 기다려주세요.`});
-  c.time = '방금';
   renderChatList();
-  if(currentChatId === sellerId) renderChatMessages(c);
+  if(currentChatId){ const cc = chats.find(x=>x.id===currentChatId); if(cc){ renderChatMessages(cc); renderChatExtra(); } }
 }
+
+// 특정 계정(myId) 관점에서, 자신이 요청자이거나 소유자인 모든 거래 요청을 로컬 chats 배열에 동기화한다.
+// 문의(1:1) 시스템과 동일한 패턴: exchangeRequests 자체가 공유 저장소이자 대화 내용이다.
+function syncTradeChatsFor(myId){
+  if(!myId) return;
+  chats = chats.filter(c=>!c.id.startsWith('trade_')); // 기존 거래 채팅 제거 후 최신 상태로 재구성
+  exchangeRequests.filter(r=>r.requesterId===myId || r.ownerId===myId).forEach(r=>{
+    const iAmOwner = r.ownerId === myId;
+    const otherId = iAmOwner ? r.requesterId : r.ownerId;
+    const otherDisplay = iAmOwner ? {name:r.requesterName, avatar:'🙂'} : getSellerDisplay(r.ownerId);
+    const statusLabel = r.status==='pending' ? '교환 신청중' : r.status==='accepted' ? '교환 완료' : '거절됨';
+    const msgs = r.messages.map(m=>{
+      if(m.sender==='system') return {from:'system', text:m.text};
+      const mine = iAmOwner ? m.sender==='owner' : m.sender==='requester';
+      return {from: mine?'me':'them', text:m.text};
+    });
+    chats.unshift({
+      id: 'trade_'+r.id, name: otherDisplay.name, avatar: otherDisplay.avatar||'🙂', time:'방금', badge:0,
+      product: {emoji:r.productEmoji, name:r.productName, price:r.productPrice||'', status:statusLabel},
+      messages: msgs, _tradeReqId: r.id, _iAmOwner: iAmOwner
+    });
+  });
+}
+
+function renderChatExtra(){
+  const el = document.getElementById('chatExtra');
+  if(!el) return;
+  const c = chats.find(x=>x.id===currentChatId);
+  if(!c || !c._tradeReqId){ el.innerHTML=''; return; }
+  const req = exchangeRequests.find(r=>r.id===c._tradeReqId);
+  if(req && req.status==='pending' && c._iAmOwner){
+    el.innerHTML = `
+      <div class="card" style="background:var(--pale);margin-top:10px">
+        <b style="font-size:12px">📦 [${req.productName}] 교환 신청이 도착했어요</b>
+        <div style="font-size:10px;color:var(--gray);margin-top:4px">${req.requesterName}님의 신청을 수락하시겠어요?</div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn outline" style="font-size:11px;padding:8px" onclick="declineExchangeRequest('${req.id}')">거절하기</button>
+          <button class="btn" style="font-size:11px;padding:8px" onclick="acceptExchangeRequest('${req.id}')">수락하기</button>
+        </div>
+      </div>`;
+  } else {
+    el.innerHTML = '';
+  }
+}
+function acceptExchangeRequest(reqId){
+  const req = exchangeRequests.find(r=>r.id===reqId);
+  if(!req || req.status!=='pending') return;
+  req.status = 'accepted';
+  req.messages.push({sender:'system', text:`🎉 [${req.productName}] 교환 신청을 수락했어요! 거래가 완료됐어요.`});
+  saveExchangeRequests();
+  const liveProduct = products.find(x=>x.id===req.productId);
+  if(liveProduct) liveProduct.status = 'traded';
+  saveSharedProducts();
+  bumpAccountStats(req.requesterId, { transactions:1, co2Saved:2.3 }); // 요청자 몫 (로그인 중이 아닐 수 있음)
+  stats.transactions += 1; stats.co2Saved = +(stats.co2Saved + 2.3).toFixed(1); updateProgress(); // 나(주인) 몫
+  const myId = currentUser ? (currentUser.isAdmin?'admin':currentUser.email) : null;
+  syncTradeChatsFor(myId);
+  renderChatList();
+  const cc = chats.find(x=>x._tradeReqId===reqId);
+  if(cc){ currentChatId = cc.id; renderChatMessages(cc); }
+  renderChatExtra();
+  if(currentUser) saveAccountData(currentUser.email);
+  toast('교환을 수락했어요 🎉');
+}
+function declineExchangeRequest(reqId){
+  const req = exchangeRequests.find(r=>r.id===reqId);
+  if(!req || req.status!=='pending') return;
+  req.status = 'declined';
+  req.messages.push({sender:'system', text:`😥 [${req.productName}] 교환 신청이 거절됐어요.`});
+  saveExchangeRequests();
+  const liveProduct = products.find(x=>x.id===req.productId);
+  if(liveProduct) liveProduct.status = 'available';
+  saveSharedProducts();
+  const myId = currentUser ? (currentUser.isAdmin?'admin':currentUser.email) : null;
+  syncTradeChatsFor(myId);
+  renderChatList();
+  const cc = chats.find(x=>x._tradeReqId===reqId);
+  if(cc){ currentChatId = cc.id; renderChatMessages(cc); }
+  renderChatExtra();
+  if(currentUser) saveAccountData(currentUser.email);
+  toast('교환 신청을 거절했어요');
+}
+
 function confirmWithdraw(){
   hideWithdraw();
   toast('회원 탈퇴가 완료되었습니다');
@@ -2169,7 +2338,7 @@ function registerProduct(){
     emoji: categoryEmoji[cat] || "👕",
     name, price, brand, size, color, condition, category:cat, desc,
     photos: (photoMgr.photos && photoMgr.photos.length) ? [...photoMgr.photos] : null,
-    seller: (currentUser && currentUser.isAdmin) ? "admin" : "me"
+    seller: (currentUser && currentUser.isAdmin) ? "admin" : (currentUser ? currentUser.email : "me")
   };
   products.push(newProduct);
   renderGrids();
@@ -2230,6 +2399,12 @@ function sendMsg(){
     inbox[customerEmail].messages.push({sender:'admin', text});
     inbox[customerEmail].time = '방금';
     saveAdminInbox(inbox);
+  } else if(currentChatId && currentChatId.startsWith('trade_') && c._tradeReqId){
+    const req = exchangeRequests.find(r=>r.id===c._tradeReqId);
+    if(req){
+      req.messages.push({sender: c._iAmOwner?'owner':'requester', text});
+      saveExchangeRequests();
+    }
   }
 }
 document.getElementById('stars').addEventListener('click', e=>{
@@ -2331,6 +2506,8 @@ renderPoints();
 loadAccounts();
 syncAdminSellerName();
 loadDeletedProducts();
+loadSharedProducts();
+loadExchangeRequests();
 renderPageViewerList();
 updateProgress();
 
