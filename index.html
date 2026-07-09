@@ -957,8 +957,12 @@ const sellers = {
   sumin:  {name:"수민", avatar:"🙂"},
   haneul: {name:"하늘", avatar:"🙂"},
   junho:  {name:"준호", avatar:"🙂"},
-  admin:  {name:"운영자", avatar:"👑"},
+  admin:  {name:"운영자", avatar:"👑"}, // 실제 표시명은 syncAdminSellerName()이 로그인/프로필저장 시점마다 닉네임으로 갱신함
 };
+function syncAdminSellerName(){
+  const acct = registeredAccounts.find(a=>a.email===ADMIN_EMAIL);
+  sellers.admin.name = (acct && acct.name) ? acct.name : '운영자';
+}
 // Chat list starts EMPTY — a chat room is created only when a transaction begins
 // (see postExchangeMessageToSeller), matching real app behavior.
 let chats = [];
@@ -1256,7 +1260,7 @@ function loadAccountData(email){
     if(t){
       chats = chats.filter(c=>c.id!=='support');
       chats.unshift({
-        id:'support', name:'운영자', avatar:'👑', time:t.time||'방금', badge:0,
+        id:'support', name:sellers.admin.name, avatar:'👑', time:t.time||'방금', badge:0,
         product:{emoji:'💬', name:'1:1 문의', price:'', status:'문의 접수'},
         messages: convertInquiryMessages(t.messages, false)
       });
@@ -1332,6 +1336,7 @@ function submitEmailLogin(){
       registeredAccounts.push(acct);
       saveAccounts();
     }
+    syncAdminSellerName();
     completeLogin({ name:acct.name, email:acct.email, provider:"admin", isAdmin:true, avatar:acct.avatar, avatarPhoto:acct.avatarPhoto, bio:acct.bio });
     return;
   }
@@ -1785,7 +1790,7 @@ function syncSupportChatForCustomer(){
   if(!t) return;
   chats = chats.filter(x=>x.id!=='support');
   chats.unshift({
-    id:'support', name:'운영자', avatar:'👑', time:t.time||'방금', badge:0,
+    id:'support', name:sellers.admin.name, avatar:'👑', time:t.time||'방금', badge:0,
     product:{emoji:'💬', name:'1:1 문의', price:'', status:'문의 접수'},
     messages: convertInquiryMessages(t.messages, false)
   });
@@ -1923,6 +1928,7 @@ function saveProfile(){
     currentUser.bio = bio;
     const acct = registeredAccounts.find(a=>a.email===currentUser.email);
     if(acct){ acct.name=name; acct.avatar=selectedAvatar; acct.avatarPhoto=selectedAvatarPhoto; acct.bio=bio; saveAccounts(); }
+    if(currentUser.isAdmin) syncAdminSellerName();
   }
   const nameEl = document.getElementById('mypageUserName');
   if(nameEl) nameEl.textContent = name + '님';
@@ -2235,6 +2241,7 @@ renderAddressList();
 renderLanguageList();
 renderPoints();
 loadAccounts();
+syncAdminSellerName();
 loadDeletedProducts();
 renderPageViewerList();
 updateProgress();
