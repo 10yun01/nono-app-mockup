@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Firestore 진단</title>
+<style>
+  body{font-family:-apple-system,'Malgun Gothic',sans-serif;background:#F7F9F6;margin:0;padding:20px;color:#222;}
+  h1{font-size:18px;color:#2E7D32;}
+  .box{background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+  .box h2{font-size:14px;margin:0 0 8px;}
+  .log{font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-all;}
+  .ok{color:#2E7D32;font-weight:700;}
+  .fail{color:#E53935;font-weight:700;}
+  button{background:#2E7D32;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-size:13px;margin-top:8px;}
+</style>
+</head>
+<body>
+<h1>🔍 Firestore 연결 진단</h1>
+
+<div class="box">
+  <h2>1️⃣ 연결 상태</h2>
+  <div class="log" id="log1">확인 중...</div>
+</div>
+
+<div class="box">
+  <h2>2️⃣ products 컬렉션 읽기 (전체 목록)</h2>
+  <div class="log" id="log2">확인 중...</div>
+</div>
+
+<div class="box">
+  <h2>3️⃣ 테스트 문서 쓰기</h2>
+  <div class="log" id="log3">대기 중</div>
+  <button onclick="testWrite()">테스트 쓰기 실행</button>
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
+  import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCRLTkQRLlLcdxyymtTAZGwUSLKBUIYzas",
+    authDomain: "nonoapp-40766.firebaseapp.com",
+    projectId: "nonoapp-40766",
+    storageBucket: "nonoapp-40766.firebasestorage.app",
+    messagingSenderId: "38054974117",
+    appId: "1:38054974117:web:7afdce04e57281e22f334c",
+    measurementId: "G-3FTFXP9DPZ"
+  };
+
+  const log1 = document.getElementById('log1');
+  const log2 = document.getElementById('log2');
+  const log3 = document.getElementById('log3');
+
+  let db;
+  try {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    log1.innerHTML = '<span class="ok">✅ Firebase 앱 초기화 성공</span>\nprojectId: ' + firebaseConfig.projectId;
+  } catch(e) {
+    log1.innerHTML = '<span class="fail">❌ 초기화 실패</span>\n' + (e.message || e);
+  }
+
+  async function testRead(){
+    try{
+      const snap = await getDocs(collection(db, 'products'));
+      let out = `<span class="ok">✅ 읽기 성공</span>\n문서 개수: ${snap.size}개\n\n`;
+      if(snap.size === 0){
+        out += '(컬렉션이 비어있습니다 — 등록한 상품이 실제로 저장되지 않았을 수 있어요)';
+      } else {
+        snap.forEach(d => {
+          const data = d.data();
+          out += `📄 ${d.id} : ${data.name || '(이름없음)'} / seller=${data.seller || '?'}\n`;
+        });
+      }
+      log2.innerHTML = out;
+    } catch(e){
+      log2.innerHTML = '<span class="fail">❌ 읽기 실패</span>\n에러코드: ' + (e.code || '없음') + '\n메시지: ' + (e.message || e);
+    }
+  }
+  testRead();
+
+  window.testWrite = async function(){
+    log3.innerHTML = '쓰는 중...';
+    const testId = 'diagnostic_test_' + Date.now();
+    try{
+      await setDoc(doc(db, 'products', testId), { id: testId, name: '진단테스트상품', createdAt: new Date().toISOString() });
+      log3.innerHTML = '<span class="ok">✅ 쓰기 성공!</span> (' + testId + ')\n\n잠시 후 자동으로 삭제합니다...';
+      setTimeout(async ()=>{
+        try{
+          await deleteDoc(doc(db, 'products', testId));
+          log3.innerHTML += '\n✅ 테스트 문서 삭제 완료';
+          testRead(); // 목록 새로고침
+        }catch(e){
+          log3.innerHTML += '\n⚠️ 삭제 실패: ' + (e.message||e);
+        }
+      }, 2000);
+    } catch(e){
+      log3.innerHTML = '<span class="fail">❌ 쓰기 실패</span>\n에러코드: ' + (e.code || '없음') + '\n메시지: ' + (e.message || e);
+    }
+  };
+</script>
+</body>
+</html>
