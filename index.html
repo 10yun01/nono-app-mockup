@@ -2033,13 +2033,19 @@ function hidePendingModal(){
   document.getElementById('pendingModal').classList.remove('show');
   nav('home');
 }
-function submitExchangeRequest(){
+async function submitExchangeRequest(){
   const p = products.find(x=>x.id===currentExchangeProductId);
   const msgInput = document.getElementById('exchangeMsgInput');
   const userMsg = msgInput ? msgInput.value.trim() : '';
-  postExchangeMessageToSeller(p, userMsg, '채팅');
   if(msgInput) msgInput.value = '';
   showPendingModal();
+  const resultChatId = await postExchangeMessageToSeller(p, userMsg, '채팅');
+  if(resultChatId){
+    setTimeout(()=>{
+      hidePendingModal();
+      openChatRoom(resultChatId); // 보낸 메시지를 바로 확인할 수 있도록 해당 채팅방으로 이동
+    }, 900);
+  }
 }
 // pushes the exchange-request notice (and optional personal message) into the seller's own chat thread
 // Converts shared-inbox messages (tagged with sender:'customer'|'admin'|'system')
@@ -2088,9 +2094,10 @@ function submitSupportInquiry(){
   toast('문의가 등록되었어요 🌱 채팅 탭에서 확인할 수 있어요');
 }
 async function postExchangeMessageToSeller(p, userMsg, viaLabel){
-  if(!p) return;
+  if(!p) return null;
   const sellerId = p.seller || 'jiyeon'; // [추측] 판매자 매핑이 없는 상품은 기본 상대(지연)로 연결
   const myId = currentUser ? (currentUser.isAdmin ? 'admin' : currentUser.email) : null;
+  let resultChatId = null;
 
   if(isRealSeller(sellerId) && sellerId !== myId){
     // 실제 계정과의 거래: 요청 자체가 공용 저장소에 저장되는 "공유 대화방" 역할을 한다 (문의 시스템과 동일한 방식)
@@ -2108,6 +2115,7 @@ async function postExchangeMessageToSeller(p, userMsg, viaLabel){
     if(liveProduct) liveProduct.status = 'pending';
     await updateProductStatusInCloud(p.id, 'pending');
     syncTradeChatsFor(myId); // 내 채팅 목록에 즉시 반영
+    resultChatId = 'trade_'+req.id;
   } else {
     // 봇 판매자와의 거래는 승인할 실제 계정이 없으므로 기존처럼 즉시 성사 처리 (내 로컬 채팅에만 존재)
     let c = chats.find(x=>x.id===sellerId);
@@ -2128,9 +2136,11 @@ async function postExchangeMessageToSeller(p, userMsg, viaLabel){
     c.product.status = '교환 완료';
     c.messages.push({from:'system', text:`🔔 [${p.name}] ${viaLabel} 교환이 완료됐어요!`});
     c.time = '방금';
+    resultChatId = sellerId;
   }
   renderChatList();
   if(currentChatId){ const cc = chats.find(x=>x.id===currentChatId); if(cc){ renderChatMessages(cc); renderChatExtra(); } }
+  return resultChatId;
 }
 
 // 특정 계정(myId) 관점에서, 자신이 요청자이거나 소유자인 모든 거래 요청을 로컬 chats 배열에 동기화한다.
