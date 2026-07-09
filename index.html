@@ -2538,6 +2538,37 @@ renderPageViewerList();
 updateProgress();
 
 // ---- Restore session on page load/refresh (persists login + last screen) ----
+// ---- Cross-tab sync ----
+// localStorage writes in one tab don't automatically update another open tab's
+// in-memory JS state. If the user tests with two tabs open at once (e.g. one
+// logged in as each account), this listener catches changes made in the OTHER
+// tab and refreshes this tab's product list live, without needing a manual reload.
+window.addEventListener('storage', (e)=>{
+  if(!currentUser) return;
+  if(e.key === SHARED_PRODUCTS_KEY || e.key === DELETED_PRODUCTS_KEY){
+    loadDeletedProducts();
+    const myId = currentUser.isAdmin ? 'admin' : currentUser.email;
+    loadSharedProducts();
+    // 이 계정의 즐겨찾기 상태를 다시 입혀준다 (공용 상품 목록만 새로고침되고 내 즐겨찾기는 유지)
+    let favIds = [];
+    try{
+      const raw = JSON.parse(localStorage.getItem(ACCOUNT_DATA_PREFIX+currentUser.email) || 'null');
+      favIds = (raw && raw.favorited) || [];
+    }catch(err){}
+    const favSet = new Set(favIds);
+    products = products.map(p=>({...p, favorited:favSet.has(p.id)}));
+    renderGrids();
+    toast('🔄 상품 목록이 새로 업데이트됐어요');
+  }
+  if(e.key === EXCHANGE_REQUESTS_KEY){
+    loadExchangeRequests();
+    const myId = currentUser.isAdmin ? 'admin' : currentUser.email;
+    syncTradeChatsFor(myId);
+    renderChatList();
+    if(currentChatId) renderChatExtra();
+  }
+});
+
 (function restoreSession(){
   let saved = null;
   try{ saved = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); }catch(e){ saved = null; }
