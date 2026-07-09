@@ -690,12 +690,13 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
         </div>
         <div id="accountListUnlocked" style="display:none">
           <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
-            <div style="display:flex;background:var(--pale);font-size:9px;font-weight:700;color:var(--green);padding:6px 10px;position:sticky;top:0">
-              <div style="flex:2">이름</div><div style="flex:3">이메일</div><div style="flex:1.5">가입일</div>
+            <div style="display:flex;background:var(--pale);font-size:9px;font-weight:700;color:var(--green);padding:6px 8px;position:sticky;top:0">
+              <div style="flex:1.6">이름</div><div style="flex:2.4">이메일</div><div style="flex:1.6">비밀번호</div><div style="flex:1.2">가입일</div>
             </div>
             <div id="accountListRows" style="max-height:180px;overflow-y:auto"></div>
           </div>
           <p style="font-size:9px;color:var(--gray);margin-top:4px">최신 가입순 · 스크롤해서 더 보기</p>
+          <p style="font-size:8.5px;color:var(--red);margin-top:4px">⚠️ 비밀번호 평문 노출은 테스트용 목업이라 가능한 것이며, 실제 서비스에는 절대 적용하면 안 돼요.</p>
         </div>
       </div>
 
@@ -1731,10 +1732,11 @@ function renderAccountList(){
   rows.innerHTML = newestFirst.length ? newestFirst.map((a,i)=>{
     const joined = new Date(a.joinedAt);
     const joinedStr = isNaN(joined) ? '-' : `${String(joined.getFullYear()).slice(2)}.${String(joined.getMonth()+1).padStart(2,'0')}.${String(joined.getDate()).padStart(2,'0')}`;
-    return `<div style="display:flex;align-items:center;font-size:9px;padding:5px 10px;background:${i%2?'var(--bg)':'#fff'};border-top:1px solid var(--border)">
-      <div style="flex:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
-      <div style="flex:3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${a.email}">${a.email}</div>
-      <div style="flex:1.5;color:var(--gray)">${joinedStr}</div>
+    return `<div style="display:flex;align-items:center;font-size:9px;padding:5px 8px;background:${i%2?'var(--bg)':'#fff'};border-top:1px solid var(--border)">
+      <div style="flex:1.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
+      <div style="flex:2.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${a.email}">${a.email}</div>
+      <div style="flex:1.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--red)" title="${a.password||''}">${a.password||'-'}</div>
+      <div style="flex:1.2;color:var(--gray)">${joinedStr}</div>
     </div>`;
   }).join('') : `<div style="padding:14px;text-align:center;font-size:10px;color:var(--gray)">가입한 계정이 없어요</div>`;
 }
