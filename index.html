@@ -395,7 +395,10 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="header" style="justify-content:space-between">
       <span class="back" onclick="back()">←</span>
       <h1 id="pd-title" style="text-align:center">상품 상세</h1>
-      <span style="color:var(--gray)">⤴</span>
+      <span style="display:flex;gap:12px;align-items:center">
+        <span style="color:var(--gray)">⤴</span>
+        <span id="pdHeartHeader" onclick="toggleFavorite(currentProductId)" style="font-size:17px;cursor:pointer;color:var(--gray)">♡</span>
+      </span>
     </div>
     <div class="content" id="pd-content"></div>
     <div id="adminDeleteRow" style="display:none;padding:0 24px 8px">
@@ -1021,21 +1024,55 @@ function deleteProduct(id){
 function openProduct(id){
   currentProductId = id;
   const p = products.find(x=>x.id===id);
+  const thumbHtml = (big) => `
+    ${p.emoji}
+    ${p.photo?`<img src="${p.photo}" alt="${p.name}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:${big?'12px':'8px'}" onerror="this.remove()">`:''}
+  `;
   document.getElementById('pd-content').innerHTML = `
-    <div class="thumb" style="width:186px;height:186px;font-size:70px;border-radius:12px;background:#C8E6C9;position:relative">
-      ${p.emoji}
-      ${p.photo?`<img src="${p.photo}" alt="${p.name}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:12px" onerror="this.remove()">`:''}
+    <div class="thumb" style="width:100%;aspect-ratio:1/1;font-size:70px;border-radius:12px;background:#C8E6C9;position:relative">
+      ${thumbHtml(true)}
+      <span style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:2px 8px;border-radius:10px">1/4</span>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;margin:14px 0 2px">
-      <h2 style="font-size:16px;margin:0">${p.name}</h2>
-      <span id="pdHeart" onclick="toggleFavorite('${p.id}')" style="font-size:19px;cursor:pointer;color:${p.favorited?'var(--red)':'var(--gray)'}">${p.favorited?'♥':'♡'}</span>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      ${[0,1,2,3].map(i=>`<div class="thumb" style="width:56px;height:56px;font-size:22px;border-radius:8px;background:#C8E6C9;position:relative;border:${i===0?'2px solid var(--green)':'1px solid var(--border)'}">${thumbHtml(false)}</div>`).join('')}
     </div>
-    <div style="font-size:11px;color:var(--gray)">${p.size} 사이즈 | ${p.brand}</div>
-    <div style="font-size:20px;font-weight:700;color:var(--green);margin:8px 0 16px">${p.price}</div>
-    <hr style="border:none;border-top:1px solid var(--border)">
+
+    <div style="margin-top:14px"><span style="background:var(--pale);color:var(--green);font-size:10px;font-weight:700;padding:4px 10px;border-radius:10px">🔄 교환 가능</span></div>
+    <div style="display:flex;align-items:center;gap:8px;margin:8px 0 2px">
+      <h2 style="font-size:17px;margin:0;font-weight:700">${p.name}</h2>
+    </div>
+    <div style="font-size:11px;color:var(--gray)">${p.size} 사이즈 &nbsp;|&nbsp; ${p.brand}</div>
+    <div style="font-size:21px;font-weight:700;color:var(--green);margin:8px 0 14px">${p.price}</div>
+
+    <div style="border-top:1px solid var(--border);padding-top:12px">
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0"><span style="color:var(--gray)">🏷️&nbsp; 카테고리</span><span>${p.category} &gt; ${p.name.includes('가디건')?'니트/가디건':p.category}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0"><span style="color:var(--gray)">✏️&nbsp; 사이즈</span><span>${p.size}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0"><span style="color:var(--gray)">🎨&nbsp; 색상</span><span>${p.color||'-'}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0"><span style="color:var(--gray)">🏷️&nbsp; 브랜드</span><span>${p.brand}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0"><span style="color:var(--gray)">📅&nbsp; 등록일</span><span>25.05.28</span></div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin-top:8px">
     <h2 class="section">상품 설명</h2>
     <p style="font-size:12px;line-height:1.6">${p.desc}</p>
+
+    <h2 class="section">상품 상태</h2>
+    <div class="list-row" style="padding-left:0;padding-right:0">
+      <div class="icon" style="background:none;font-size:20px">🙂</div>
+      <div class="text"><div class="title">거의 새 상품</div><div class="sub">1~2회 착용으로 상태가 매우 좋습니다.</div></div>
+      <div class="chev">&gt;</div>
+    </div>
+
+    <h2 class="section">교환 정보</h2>
+    <div style="display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0"><span style="color:var(--gray)">📍&nbsp; 교환 지역</span><span>서울 전체</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0"><span style="color:var(--gray)">📦&nbsp; 교환 방식</span><span>직거래 / 택배 중 선택</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0"><span style="color:var(--gray)">📅&nbsp; 교환 가능 기간</span><span>~ 25.06.11</span></div>
   `;
+  const pdHeartHeader = document.getElementById('pdHeartHeader');
+  if(pdHeartHeader){
+    pdHeartHeader.textContent = p.favorited ? '♥' : '♡';
+    pdHeartHeader.style.color = p.favorited ? 'var(--red)' : 'var(--gray)';
+  }
   const deleteRow = document.getElementById('adminDeleteRow');
   if(deleteRow) deleteRow.style.display = (currentUser && currentUser.isAdmin) ? '' : 'none';
   nav('product');
@@ -1044,7 +1081,7 @@ function openProduct(id){
 function toggleFavorite(id){
   const p = products.find(x=>x.id===id);
   p.favorited = !p.favorited;
-  const heart = document.getElementById('pdHeart');
+  const heart = document.getElementById('pdHeartHeader');
   if(heart){
     heart.textContent = p.favorited ? '♥' : '♡';
     heart.style.color = p.favorited ? 'var(--red)' : 'var(--gray)';
