@@ -1325,6 +1325,7 @@ function logoutUser(){
   if(currentUser) saveAccountData(currentUser.email); // 로그아웃 전 이 계정의 활동 데이터를 저장
   const bar = document.getElementById('samplePreviewBar');
   if(bar) bar.style.display = 'none';
+  accountListUnlockedThisSession = false;
   clearSession();
   goToSplashReset();
 }
@@ -1456,6 +1457,7 @@ function saveAccounts(){
   catch(e){ /* storage unavailable — accounts just won't survive a refresh */ }
 }
 function submitEmailLogin(){
+  loadAccounts(); // 로그인 직전에 항상 최신 계정 데이터로 다시 동기화 (이름/이미지 변경분이 확실히 반영되도록)
   const email = document.getElementById('loginEmail').value.trim();
   const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
@@ -1823,7 +1825,17 @@ function goToSettings(){
   }
   nav('settings');
 }
+let accountListUnlockedThisSession = false;
 function lockAccountList(){
+  if(accountListUnlockedThisSession){
+    // 이번 로그인 세션에서 이미 인증했다면 다시 잠그지 않고 바로 최신 목록을 보여준다
+    const locked = document.getElementById('accountListLocked');
+    const unlocked = document.getElementById('accountListUnlocked');
+    if(locked) locked.style.display = 'none';
+    if(unlocked) unlocked.style.display = '';
+    renderAccountList();
+    return;
+  }
   const locked = document.getElementById('accountListLocked');
   const unlocked = document.getElementById('accountListUnlocked');
   if(locked) locked.style.display = '';
@@ -1834,6 +1846,7 @@ function lockAccountList(){
 function verifyAccountListPw(){
   const pw = document.getElementById('accountListPwInput').value;
   if(pw !== ADMIN_PW){ toast('비밀번호가 일치하지 않아요'); return; }
+  accountListUnlockedThisSession = true;
   document.getElementById('accountListLocked').style.display = 'none';
   document.getElementById('accountListUnlocked').style.display = '';
   renderAccountList();
