@@ -1800,6 +1800,8 @@ function exitSamplePreview(){
 }
 
 function goToSettings(){
+  loadAccounts(); // 최신 데이터로 다시 동기화 (계정목록·닉네임이 항상 최신 상태로 보이도록)
+  syncAdminSellerName();
   const panel = document.getElementById('adminPanel');
   const testTools = document.getElementById('testToolsSection');
   const isAdminUser = !!(currentUser && currentUser.isAdmin);
@@ -2536,6 +2538,8 @@ updateProgress();
     stack = targetId === 'home' ? ['home'] : ['home', targetId];
     updateProgress();
     if(targetId === 'settings'){
+      loadAccounts();
+      syncAdminSellerName();
       const panel = document.getElementById('adminPanel');
       const testTools = document.getElementById('testToolsSection');
       const isAdminUser = !!(currentUser && currentUser.isAdmin);
