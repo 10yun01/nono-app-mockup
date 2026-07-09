@@ -436,9 +436,16 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="top-spacer"></div>
     <div class="header"><span class="back" onclick="back()">←</span><h1>의류 등록</h1><span class="action">💾 임시저장</span></div>
     <div class="content">
-      <div class="grad-card" style="border-radius:14px;padding:14px;display:flex;gap:12px;align-items:center">
-        <div style="width:48px;height:48px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📷</div>
-        <div><div style="font-weight:700;font-size:13px">함께 입던 옷, 새로운 가치를 만들어요!</div><div style="font-size:10px;color:var(--gray);margin-top:3px">옷의 정보를 정확히 입력하면 더 빠른 교환이 가능해요.</div></div>
+      <div class="grad-card" style="border-radius:16px;padding:18px;position:relative;overflow:hidden;box-shadow:0 4px 14px rgba(46,125,50,.10)">
+        <div class="leaf-deco" style="top:8px;right:14px;font-size:26px;opacity:.35">🌿</div>
+        <span style="background:#fff;color:var(--green);font-size:9px;font-weight:700;padding:3px 9px;border-radius:8px">✨ EASY REGISTER</span>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:10px">
+          <div style="width:50px;height:50px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.08)">📷</div>
+          <div>
+            <div style="font-weight:700;font-size:14.5px;line-height:1.35">함께 입던 옷,<br>새로운 가치를 만들어요!</div>
+          </div>
+        </div>
+        <div style="font-size:10.5px;color:#4C7A4B;margin-top:10px">옷의 정보를 정확히 입력하면 더 빠른 교환이 가능해요.</div>
       </div>
 
       <label class="field-label" style="margin-top:16px">사진 등록 <span style="color:var(--gray);font-weight:400">(최대 10장)</span></label>
@@ -461,14 +468,30 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
         <span class="chip regsize">XS</span><span class="chip regsize">S</span><span class="chip regsize active">M</span><span class="chip regsize">L</span><span class="chip regsize">XL</span><span class="chip regsize">FREE</span>
       </div>
       <label class="field-label">색상</label>
-      <div id="regColorDots" style="display:flex;gap:10px;flex-wrap:wrap">
+      <div id="regColorDots" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <span class="regcolor active" data-color="아이보리" style="background:#F7F7F2"></span>
-        <span class="regcolor" data-color="민트" style="background:#A5D6A7"></span>
-        <span class="regcolor" data-color="블루" style="background:#90A4C4"></span>
+        <span class="regcolor" data-color="화이트" style="background:#FFFFFF"></span>
+        <span class="regcolor" data-color="베이지" style="background:#E8DCC8"></span>
+        <span class="regcolor" data-color="옐로우" style="background:#F5D96B"></span>
+        <span class="regcolor" data-color="오렌지" style="background:#F0A868"></span>
+        <span class="regcolor" data-color="레드" style="background:#E36B6B"></span>
         <span class="regcolor" data-color="핑크" style="background:#F0B8C4"></span>
+        <span class="regcolor" data-color="퍼플" style="background:#B49CD6"></span>
+        <span class="regcolor" data-color="블루" style="background:#90A4C4"></span>
+        <span class="regcolor" data-color="스카이블루" style="background:#A8D4E8"></span>
+        <span class="regcolor" data-color="민트" style="background:#A5D6A7"></span>
+        <span class="regcolor" data-color="그린" style="background:#6FA96E"></span>
+        <span class="regcolor" data-color="카키" style="background:#A6A26B"></span>
+        <span class="regcolor" data-color="브라운" style="background:#9C6B4A"></span>
         <span class="regcolor" data-color="그레이" style="background:#9E9E9E"></span>
         <span class="regcolor" data-color="블랙" style="background:#222"></span>
+        <label style="width:32px;height:32px;border-radius:50%;border:1.5px dashed var(--gray);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;flex-shrink:0" title="원하는 색상 직접 선택">
+          <span id="regCustomColorSwatch" style="position:absolute;inset:0;border-radius:50%;background:#fff"></span>
+          <span style="position:relative;font-size:14px;color:var(--gray)">🎨</span>
+          <input type="color" id="regCustomColor" value="#2E7D32" style="position:absolute;inset:0;opacity:0;cursor:pointer" oninput="selectCustomColor(this.value)">
+        </label>
       </div>
+      <p style="font-size:9px;color:var(--gray);margin-top:6px" id="regColorSelectedLabel">선택된 색상: 아이보리</p>
       <label class="field-label">상태</label>
       <div id="regConditionChips">
         <span class="chip regcondition">새상품</span><span class="chip regcondition">거의 새것</span><span class="chip regcondition active">좋음</span><span class="chip regcondition">보통</span>
@@ -2094,6 +2117,15 @@ function createPhotoManager(gridId, maxCount){
 createPhotoManager('photoGrid', 10);
 createPhotoManager('exchangePhotoGrid', 5);
 
+let regCustomColorHex = null;
+function selectCustomColor(hex){
+  regCustomColorHex = hex;
+  document.querySelectorAll('.regcolor').forEach(c=>c.classList.remove('active'));
+  const swatch = document.getElementById('regCustomColorSwatch');
+  if(swatch) swatch.style.background = hex;
+  const lbl = document.getElementById('regColorSelectedLabel');
+  if(lbl) lbl.textContent = '선택된 색상: 커스텀 (' + hex.toUpperCase() + ')';
+}
 // single-select chip groups (registration form: size / color / condition; category is now a native <select>)
 document.addEventListener('click', e=>{
   if(e.target.classList.contains('regsize')){
@@ -2103,6 +2135,9 @@ document.addEventListener('click', e=>{
   if(e.target.classList.contains('regcolor')){
     document.querySelectorAll('.regcolor').forEach(c=>c.classList.remove('active'));
     e.target.classList.add('active');
+    regCustomColorHex = null;
+    const lbl = document.getElementById('regColorSelectedLabel');
+    if(lbl) lbl.textContent = '선택된 색상: ' + e.target.dataset.color;
   }
   if(e.target.classList.contains('regcondition')){
     document.querySelectorAll('.regcondition').forEach(c=>c.classList.remove('active'));
@@ -2117,7 +2152,7 @@ function registerProduct(){
   const cat = document.getElementById('regCategory').value || "상의";
   const brand = document.getElementById('regBrand').value.trim() || "블랭키";
   const size = document.querySelector('.regsize.active')?.textContent || "M";
-  const color = document.querySelector('.regcolor.active')?.dataset.color || "-";
+  const color = regCustomColorHex ? regCustomColorHex.toUpperCase() : (document.querySelector('.regcolor.active')?.dataset.color || "-");
   const condition = document.querySelector('.regcondition.active')?.textContent || "좋음";
   const wish = document.getElementById('regWish').value.trim();
   const priceRaw = document.getElementById('regPrice').value.trim();
@@ -2141,6 +2176,14 @@ function registerProduct(){
   document.getElementById('regName').value='';
   document.getElementById('regPrice').value='';
   document.getElementById('regDesc').value='';
+  document.getElementById('regBrand').value='';
+  document.getElementById('regWish').value='';
+  document.getElementById('regDescCount').textContent='0';
+  regCustomColorHex = null;
+  document.getElementById('regCustomColorSwatch').style.background = '#fff';
+  document.querySelectorAll('.regcolor').forEach(c=>c.classList.remove('active'));
+  document.querySelector('.regcolor').classList.add('active');
+  document.getElementById('regColorSelectedLabel').textContent = '선택된 색상: 아이보리';
   photoMgr.reset();
 
   toast('등록되었습니다 🌱 전체 상품에서 확인해보세요');
