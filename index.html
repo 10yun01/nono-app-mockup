@@ -457,9 +457,11 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="top-spacer"></div>
     <div class="header"><span class="back" onclick="nav('home')">←</span><h1>거래 완료</h1></div>
     <div class="content" style="text-align:center;position:relative">
-      <div class="leaf-deco" style="top:8px;left:30px">🍃</div>
-      <div class="leaf-deco" style="top:20px;right:32px;font-size:14px">✨</div>
-      <div class="leaf-deco" style="top:60px;left:50px;font-size:14px">✨</div>
+      <div class="leaf-deco" style="top:6px;left:60px;font-size:16px;transform:rotate(-20deg)">🍃</div>
+      <div class="leaf-deco" style="top:2px;right:70px;font-size:13px">✨</div>
+      <div class="leaf-deco" style="top:44px;left:30px;font-size:12px">💚</div>
+      <div class="leaf-deco" style="top:50px;right:36px;font-size:18px;transform:rotate(15deg)">🍃</div>
+      <div class="leaf-deco" style="top:12px;right:120px;font-size:11px">✨</div>
       <div style="width:64px;height:64px;border-radius:50%;background:var(--green);color:#fff;
         display:flex;align-items:center;justify-content:center;font-size:28px;margin:20px auto 0">✓</div>
       <h2 style="font-size:17px;margin:14px 0 4px">거래가 완료되었습니다!</h2>
@@ -470,11 +472,22 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
       </div>
 
       <h2 class="section" style="text-align:left">거래 정보</h2>
-      <div class="card" style="text-align:left" id="doneTradeInfo">
-        <div style="font-size:11px;color:var(--gray)">상대방</div><div style="font-weight:700;font-size:13px" id="doneCounterparty">-</div>
-        <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
-        <div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0"><span style="color:var(--gray)">거래 방식</span><span>직거래</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0"><span style="color:var(--gray)">거래 장소</span><span>서울 강남구 역삼동</span></div>
+      <div class="card" style="text-align:left">
+        <div style="display:flex;gap:12px;align-items:center;padding-bottom:12px">
+          <div style="width:56px;height:56px;border-radius:10px;background:var(--pale);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">🧶</div>
+          <div>
+            <div style="font-weight:700;font-size:14px" id="doneProductName">민트 브이넥 니트 가디건</div>
+            <div style="font-size:10.5px;color:var(--gray);margin-top:3px" id="doneProductMeta">M 사이즈 &nbsp;|&nbsp; 마인드</div>
+            <div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px" id="doneProductPrice">120P</div>
+          </div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:0 0 10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;padding:5px 0">
+          <span style="color:var(--gray)">👤&nbsp; 상대방</span><span style="font-weight:600" id="doneCounterparty">지연님 &nbsp;›</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0"><span style="color:var(--gray)">📦&nbsp; 거래 방식</span><span>직거래</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0"><span style="color:var(--gray)">📍&nbsp; 거래 장소</span><span>서울 강남구 역삼동</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0"><span style="color:var(--gray)">📅&nbsp; 거래 일시</span><span>2025.05.28 (화) 오후 3:30</span></div>
       </div>
 
       <h2 class="section" style="text-align:left">환경 기여 결과</h2>
@@ -485,7 +498,9 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
         <div><div style="font-size:15px">⚡</div><div style="font-size:9px;color:var(--gray);margin-top:2px">에너지 절약</div><div style="font-weight:700;color:var(--green);font-size:13px">0.5kWh</div></div>
       </div>
 
-      <div class="card" style="background:var(--pale);margin-top:12px;font-size:11px">💚 함께 만드는 더 나은 지구 — 작은 나눔이 모여 큰 변화를 만듭니다.</div>
+      <div class="card" style="background:var(--pale);margin-top:12px;text-align:left;display:flex;gap:8px;align-items:center">
+        <span style="font-size:14px">💚</span><div><b style="font-size:11.5px">함께 만드는 더 나은 지구</b><div style="font-size:10px;color:var(--gray);margin-top:2px">작은 나눔이 모여 큰 변화를 만듭니다. 🌱</div></div>
+      </div>
 
       <div class="btn-row" style="margin-top:16px">
         <button class="btn outline" onclick="nav('home')">홈으로 이동</button>
