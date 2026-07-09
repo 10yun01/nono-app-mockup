@@ -1266,6 +1266,7 @@ function saveAccountData(email){
   const data = {
     chats, stats, myPoints,
     favorited: products.filter(p=>p.favorited).map(p=>p.id),
+    myProducts: products.filter(p=>p.id.startsWith('user')), // 사용자가 직접 등록한 상품은 시드에 없으므로 전체 객체를 저장
     recentSearches
   };
   try{ localStorage.setItem(ACCOUNT_DATA_PREFIX+email, JSON.stringify(data)); }
@@ -1281,6 +1282,9 @@ function loadAccountData(email){
     myPoints = typeof data.myPoints === 'number' ? data.myPoints : 0;
     const favSet = new Set(data.favorited||[]);
     products = activeProductSeed().map(p=>({...p, favorited:favSet.has(p.id)}));
+    if(data.myProducts && data.myProducts.length){
+      products = products.concat(data.myProducts.filter(p=>!deletedProductIds.includes(p.id))); // 삭제된 상품은 복원하지 않음
+    }
     recentSearches = data.recentSearches || [];
   } else {
     // 이 계정으로는 처음 로그인 — 완전히 빈 상태에서 시작
@@ -2171,6 +2175,7 @@ function registerProduct(){
   renderGrids();
   stats.registered += 1;
   updateProgress();
+  if(currentUser) saveAccountData(currentUser.email); // 새로고침해도 등록한 상품이 사라지지 않도록 즉시 저장
 
   // reset form
   document.getElementById('regName').value='';
