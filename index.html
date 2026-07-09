@@ -849,84 +849,62 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
   <!-- ============ ENVIRONMENTAL CONTRIBUTION REPORT ============ -->
   <div class="screen" id="screen-report">
     <div class="top-spacer"></div>
-    <div class="header" style="justify-content:space-between"><span class="back" onclick="back()">←</span><h1>환경 리포트</h1><span style="color:var(--gray)">⤴</span></div>
+    <div class="header" style="justify-content:space-between"><span class="back" onclick="back()">←</span><h1>친환경 활동 기록</h1><span style="color:var(--gray)">⤴</span></div>
     <div class="content">
-      <div class="grad-card" style="border-radius:16px;padding:16px;display:flex;align-items:center;gap:12px">
-        <div style="font-size:38px;flex-shrink:0">🌍</div>
-        <div>
-          <div style="font-weight:600;font-size:15px;line-height:1.4">나의 작은 실천이<br><span style="color:var(--green)">지구를 바꾸고 있어요!</span></div>
-          <div style="font-size:10px;color:var(--gray);margin-top:6px">네옷내옷과 함께한 친환경 활동을 확인해보세요.</div>
+      <div class="grad-card" style="border-radius:16px;padding:18px;display:flex;align-items:center;gap:10px;position:relative;overflow:hidden">
+        <div style="flex:1.3">
+          <div style="font-weight:700;font-size:15px;line-height:1.4">나의 작은 실천이<br><span style="color:var(--green)">지구를 더 건강하게!</span></div>
+          <div style="font-size:10px;color:var(--gray);margin-top:8px;line-height:1.6">니옷내옷과 함께한<br>친환경 활동을 기록하고<br>더 나은 지구를 만들어가요.</div>
         </div>
+        <div style="font-size:56px;flex-shrink:0;text-align:center">🌍<div style="font-size:15px;margin-top:-14px">🌳🌳</div></div>
       </div>
 
       <div style="display:flex;gap:8px;margin-top:14px;overflow-x:auto">
-        <span class="chip active">이번 달</span><span class="chip">최근 3개월</span><span class="chip">올해</span><span class="chip">전체</span>
+        <span class="chip active" style="background:var(--green);color:#fff;border-color:var(--green)">이번 달</span><span class="chip">최근 3개월</span><span class="chip">올해</span><span class="chip">전체</span>
       </div>
 
-      <h2 class="section" style="display:flex;justify-content:space-between;align-items:center">이번 달 활동 요약</h2>
+      <h2 class="section" style="display:flex;justify-content:space-between;align-items:center">이번 달 활동 요약 <span style="font-weight:400;color:var(--gray);font-size:10.5px" id="reportDateLabel">📅 2026.07</span></h2>
       <div class="card" style="display:flex;justify-content:space-around;text-align:center">
-        <div><div style="font-size:18px">🔄</div><div style="font-size:9px;color:var(--gray);margin-top:6px">교환 횟수</div><div style="font-weight:700;color:var(--dark);font-size:16px;margin-top:2px" id="reportTradeCount">0건</div></div>
-        <div><div style="font-size:18px">☁️</div><div style="font-size:9px;color:var(--gray);margin-top:6px">CO₂ 절감량</div><div style="font-weight:700;color:var(--dark);font-size:16px;margin-top:2px" id="reportCo2Mini">0kg</div></div>
-        <div><div style="font-size:18px">💧</div><div style="font-size:9px;color:var(--gray);margin-top:6px">물 절약량</div><div style="font-weight:700;color:var(--dark);font-size:16px;margin-top:2px" id="reportWaterMini">0L</div></div>
-        <div><div style="font-size:18px">⚡</div><div style="font-size:9px;color:var(--gray);margin-top:6px">에너지 절약량</div><div style="font-weight:700;color:var(--dark);font-size:16px;margin-top:2px" id="reportEnergyMini">0kWh</div></div>
+        <div><div style="font-size:18px">🔄</div><div style="font-size:9px;color:var(--gray);margin-top:6px">교환 횟수</div><div style="font-weight:700;color:var(--dark);font-size:16px;margin-top:2px" id="reportTradeCount">0회</div><div style="font-size:8px;color:var(--green);margin-top:2px" id="reportTradeDelta">-</div></div>
+        <div><div style="font-size:18px">☁️</div><div style="font-size:9px;color:var(--gray);margin-top:6px">CO₂ 절감량</div><div style="font-weight:700;color:var(--dark);font-size:16px;margin-top:2px" id="reportCo2Mini">0kg</div><div style="font-size:8px;color:var(--gray);margin-top:2px" id="reportTreeMini">나무 0.0그루 🌳</div></div>
+        <div><div style="font-size:18px">💧</div><div style="font-size:9px;color:var(--gray);margin-top:6px">물 절약량</div><div style="font-weight:700;color:var(--dark);font-size:16px;margin-top:2px" id="reportWaterMini">0L</div><div style="font-size:8px;color:var(--gray);margin-top:2px" id="reportBathMini">욕조 0.0개 🛁</div></div>
+        <div><div style="font-size:18px">⚡</div><div style="font-size:9px;color:var(--gray);margin-top:6px">에너지 절약량</div><div style="font-weight:700;color:var(--dark);font-size:16px;margin-top:2px" id="reportEnergyMini">0kWh</div><div style="font-size:8px;color:var(--gray);margin-top:2px" id="reportBulbMini">전구 0.0개 💡</div></div>
       </div>
 
-      <h2 class="section">월별 CO₂ 절감 추이 <span style="font-weight:400;color:var(--gray);font-size:10px">(kg)</span></h2>
-      <div class="card" style="display:flex;gap:10px;align-items:stretch">
-        <svg id="co2ChartSvg" viewBox="0 0 220 140" style="flex:1.4">
-          <!-- gridlines -->
-          <g stroke="var(--border)" stroke-width="1">
-            <line x1="24" y1="10" x2="215" y2="10"/><line x1="24" y1="38" x2="215" y2="38"/>
-            <line x1="24" y1="66" x2="215" y2="66"/><line x1="24" y1="94" x2="215" y2="94"/>
-            <line x1="24" y1="122" x2="215" y2="122"/>
-          </g>
-          <g font-size="9" fill="var(--gray)" text-anchor="end">
-            <text x="18" y="13">8</text><text x="18" y="41">6</text><text x="18" y="69">4</text><text x="18" y="97">2</text><text x="18" y="125">0</text>
-          </g>
-          <polyline points="34,111 74,90 114,80 154,58 194,22" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <g fill="var(--green)">
-            <circle cx="34" cy="111" r="3.5"/><circle cx="74" cy="90" r="3.5"/><circle cx="114" cy="80" r="3.5"/><circle cx="154" cy="58" r="3.5"/><circle cx="194" cy="22" r="4" stroke="#fff" stroke-width="1.5"/>
-          </g>
-          <g font-size="9.5" fill="var(--dark)" text-anchor="middle" font-weight="600">
-            <text x="34" y="103">1.2</text><text x="74" y="82">2.8</text><text x="114" y="72">3.6</text><text x="154" y="50">4.9</text><text x="194" y="14">6.2</text>
-          </g>
-          <g font-size="9" fill="var(--gray)" text-anchor="middle">
-            <text x="34" y="134">1월</text><text x="74" y="134">2월</text><text x="114" y="134">3월</text><text x="154" y="134">4월</text><text x="194" y="134">5월</text>
-          </g>
-        </svg>
-        <div style="background:var(--pale);border-radius:12px;padding:10px;flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center">
-          <div style="font-size:16px">🌱</div>
-          <div style="font-size:9px;color:var(--gray);margin-top:4px">누적 CO₂ 절감</div>
-          <div style="font-size:17px;font-weight:700;color:var(--green)" id="reportCo2Big">0.0kg</div>
-          <div style="font-size:8.5px;color:var(--gray);margin-top:4px" id="reportTreeEquiv">나무 0.0그루를<br>심은 효과예요!</div>
-        </div>
-      </div>
-
-      <h2 class="section">나의 에코 레벨</h2>
-      <div class="card grad-card" style="display:flex;align-items:center;gap:14px">
-        <div class="progress-ring" id="reportRing" style="background:conic-gradient(var(--green) 0%, var(--imggray) 0);width:64px;height:64px;flex-shrink:0">
-          <div style="width:52px;height:52px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center">
-            <div style="font-weight:700;font-size:12px;color:var(--green)" id="reportRingLevel">Lv.1</div>
+      <h2 class="section">누적 환경 기여</h2>
+      <div class="card" style="padding:16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="font-size:10px;color:var(--gray)">🌱 누적 CO₂ 절감</div>
+            <div style="font-size:20px;font-weight:700;color:var(--green);margin-top:2px" id="reportCo2Big">0.0kg</div>
+            <div style="font-size:8.5px;color:var(--gray);margin-top:4px;line-height:1.5" id="reportTreeEquiv">나무 0.0그루를<br>심은 효과예요!</div>
+          </div>
+          <div class="progress-ring" id="reportRing" style="background:conic-gradient(var(--green) 0%, var(--imggray) 0);width:78px;height:78px;flex-shrink:0">
+            <div style="width:64px;height:64px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div style="font-size:9px;color:var(--gray)">🌿 에코 레벨</div>
+              <div style="font-weight:700;font-size:13px;color:var(--green)" id="reportRingLevel">Lv.1</div>
+              <div style="font-size:8px;color:var(--gray)" id="reportLevelTitleMini">새싹 단계</div>
+            </div>
           </div>
         </div>
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:13px" id="reportLevelTitle">새싹 단계</div>
-          <div style="font-size:9.5px;color:var(--gray);margin-top:2px;line-height:1.4" id="reportLevelDesc">활동을 시작해보세요!</div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="font-size:9.5px;color:var(--gray)" id="reportLevelSub2">다음 레벨까지 0XP</div>
+          <div style="margin-top:6px;height:6px;border-radius:3px;background:var(--imggray);overflow:hidden"><div id="reportLevelBar" style="height:100%;background:var(--green);width:0%"></div></div>
+        </div>
+        <div style="margin-top:14px">
+          <div style="font-size:10px;color:var(--gray);margin-bottom:8px">보유 배지</div>
+          <div id="reportBadgeRow" style="display:flex;gap:10px;flex-wrap:wrap"></div>
         </div>
       </div>
-      <div class="card" style="margin-top:8px">
-        <div style="font-size:10px;color:var(--gray)" id="reportLevelSub2">다음 레벨까지 0XP</div>
-        <div style="margin-top:8px;height:6px;border-radius:3px;background:var(--imggray);overflow:hidden"><div id="reportLevelBar" style="height:100%;background:var(--green);width:0%"></div></div>
-      </div>
 
-      <h2 class="section">친환경 배지</h2>
-      <div id="reportBadgeRow" style="display:flex;gap:14px;flex-wrap:wrap;justify-content:space-between"></div>
+      <h2 class="section" style="display:flex;justify-content:space-between;align-items:center">최근 활동 내역 <span style="font-weight:400;color:var(--green);font-size:10.5px;cursor:pointer" onclick="nav('trade')">전체 보기 ></span></h2>
+      <div id="reportRecentActivity"></div>
 
       <div class="card" style="background:var(--pale);margin-top:16px;display:flex;gap:10px;align-items:center">
         <span style="font-size:18px">💚</span>
-        <div style="font-size:11px;line-height:1.6">지속 가능한 패션, 함께 만들어가요!<br><span style="color:var(--gray);font-size:10px">실천이 모여 더 큰 변화를 만듭니다. 감사합니다.</span></div>
+        <div style="font-size:11px;line-height:1.6">지속 가능한 패션, 함께 만들어가요!<br><span style="color:var(--gray);font-size:10px">지금까지의 실천이 더 큰 변화를 만듭니다. 감사합니다.</span></div>
       </div>
-      <p style="font-size:9px;color:var(--gray);line-height:1.7;margin-top:14px">* 월별 추이, 물·에너지 절약량은 참고용 샘플 데이터(실측 아님)이며, 교환 횟수·CO₂ 절감량은 실제 활동 데이터입니다.</p>
+      <p style="font-size:9px;color:var(--gray);line-height:1.7;margin-top:14px">* 물·에너지 절약량, 나무·욕조·전구 환산치는 참고용 샘플 환산 데이터(실측 아님)이며, 교환 횟수·CO₂ 절감량은 실제 활동 데이터입니다.</p>
     </div>
   </div>
 
@@ -1750,9 +1728,14 @@ function renderLevel(){
   setIfExists('reportCo2Mini', stats.co2Saved.toFixed(1)+'kg');
   setIfExists('reportWaterMini', Math.round(stats.co2Saved*100)+'L'); // [샘플 공식]
   setIfExists('reportEnergyMini', (stats.co2Saved*0.34).toFixed(1)+'kWh'); // [샘플 공식]
-  setIfExists('reportTradeCount', stats.transactions+'건');
+  setIfExists('reportTradeCount', stats.transactions+'회');
+  setIfExists('reportTradeDelta', stats.transactions>0 ? `+${stats.transactions}회 ↑` : '아직 활동이 없어요');
+  setIfExists('reportTreeMini', `나무 ${(stats.co2Saved/8.9).toFixed(1)}그루 🌳`); // [샘플 공식]
+  setIfExists('reportBathMini', `욕조 ${(stats.co2Saved*100/200).toFixed(1)}개 🛁`); // [샘플 공식]
+  setIfExists('reportBulbMini', `전구 ${(stats.co2Saved*0.34*2.5).toFixed(1)}개 💡`); // [샘플 공식]
   setIfExists('reportRingLevel', 'Lv.'+info.level);
   setIfExists('reportLevelTitle', info.title);
+  setIfExists('reportLevelTitleMini', info.title);
   setIfExists('reportLevelDesc', isAdminUser ? '운영자 전용 최고 등급이에요!' : '꾸준한 실천으로 지구를 지키는 멋진 친구예요!');
   const treeEl = document.getElementById('reportTreeEquiv');
   if(treeEl) treeEl.innerHTML = `나무 ${(stats.co2Saved/8.9).toFixed(1)}그루를<br>심은 효과예요!`;
@@ -1764,6 +1747,30 @@ function renderLevel(){
   setIfExists('mypageTradeSub', `진행중 2건 · 완료 ${stats.transactions}건`);
   setIfExists('mypageCo2Sub', `누적 CO₂ 절감 ${stats.co2Saved.toFixed(1)}kg`);
   setIfExists('mypageWishSub', `${favoritesCount()}개 저장됨`);
+
+  const now = new Date();
+  setIfExists('reportDateLabel', `📅 ${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}`);
+  renderRecentActivity();
+}
+function renderRecentActivity(){
+  const el = document.getElementById('reportRecentActivity');
+  if(!el) return;
+  const completed = chats.filter(c=>c.product && c.product.status==='교환 완료').slice(0,3);
+  if(!completed.length){
+    el.innerHTML = '<p style="text-align:center;color:var(--gray);font-size:11px;padding:20px 0">아직 완료된 활동이 없어요. 첫 교환을 시작해보세요!</p>';
+    return;
+  }
+  el.innerHTML = completed.map(c=>{
+    const co2 = (2.3).toFixed(1); // [샘플 공식] 거래 1건당 추정 절감량
+    return `<div class="list-row">
+      <div class="icon" style="font-size:20px">${c.product.emoji||'👕'}</div>
+      <div class="text">
+        <div class="title">${c.product.name||'상품'}</div>
+        <div class="sub">${c._tradeReqId ? '거래 완료' : '직거래 완료'} · ${c.time||''}</div>
+      </div>
+      <div style="text-align:right;font-size:10.5px;color:var(--green);font-weight:600;white-space:nowrap">CO₂ ${co2}kg 절감 ↗</div>
+    </div>`;
+  }).join('');
 }
 
 const achievements = [
