@@ -468,17 +468,59 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
   <!-- ============ EXCHANGE REQUEST ============ -->
   <div class="screen" id="screen-exchange">
     <div class="top-spacer"></div>
-    <div class="header"><span class="back" onclick="back()">←</span><h1>교환 신청</h1></div>
+    <div class="header" style="justify-content:space-between"><span class="back" onclick="back()">←</span><h1>교환 신청</h1><span style="color:var(--green);font-size:11px;font-weight:600;cursor:pointer" onclick="openLegal('terms')">🛈 이용 안내</span></div>
     <div class="content">
-      <div class="card"><b>교환 신청 후 상대방이 승인하면 성사됩니다.</b></div>
+      <div class="card" id="exchangeProductCard" style="display:flex;gap:12px"></div>
+      <div class="card" style="background:#FFF8ED;display:flex;gap:8px;align-items:flex-start;margin-top:10px">
+        <span style="font-size:13px">⚠️</span>
+        <span style="font-size:11px;line-height:1.5">교환 신청 후 상대방이 승인해야 교환이 성사됩니다.</span>
+      </div>
+
+      <h2 class="section">교환할 내 상품</h2>
+      <div class="list-row" id="myOfferRow" onclick="toggleMyOfferPicker()" style="background:var(--bg);border-radius:12px;padding:14px;border:1px solid var(--border)">
+        <div class="icon" style="background:none;font-size:22px;color:var(--green)" id="myOfferIcon">+</div>
+        <div class="text">
+          <div class="title" id="myOfferTitle">교환할 내 상품 선택</div>
+          <div class="sub" id="myOfferSub">등록한 상품 목록에서 선택해주세요.</div>
+        </div>
+        <div class="chev">></div>
+      </div>
+      <div id="myOfferPicker" style="display:none;margin-top:6px;border:1px solid var(--border);border-radius:12px;overflow:hidden;max-height:220px;overflow-y:auto"></div>
+
       <h2 class="section">교환 조건</h2>
-      <label class="field-label">교환 희망 일시</label>
-      <input type="text" placeholder="날짜와 시간을 선택해주세요">
-      <label class="field-label">사진 등록 <span style="color:var(--gray);font-weight:400">(최대 5장, 선택)</span></label>
-      <div class="photo-grid" id="exchangePhotoGrid"></div>
-      <p style="font-size:9px;color:var(--gray);margin-top:6px">* 상품 상태를 확인할 수 있는 사진을 추가하면 신뢰도가 높아져요.</p>
-      <label class="field-label">상대방에게 메시지</label>
-      <textarea id="exchangeMsgInput" placeholder="교환에 대한 인사나 추가 내용을 입력해주세요."></textarea>
+      <div class="list-row" onclick="toast('날짜/시간 선택 기능은 준비 중이에요')">
+        <div class="icon" style="background:none;font-size:16px">📅</div>
+        <div class="text"><div class="title" style="font-weight:600">교환 희망 일시</div></div>
+        <div class="sub" style="flex-shrink:0;max-width:130px;text-align:right">날짜와 시간을 선택해주세요.</div>
+        <div class="chev">></div>
+      </div>
+      <div class="list-row" id="exchangeMethodRow" onclick="cycleExchangeMethod()">
+        <div class="icon" style="background:none;font-size:16px">📍</div>
+        <div class="text"><div class="title" style="font-weight:600">교환 방식</div></div>
+        <div class="sub" id="exchangeMethodSub" style="flex-shrink:0;max-width:150px;text-align:right">직거래 / 택배 중 선택</div>
+        <div class="chev">></div>
+      </div>
+      <div class="list-row" onclick="document.getElementById('exchangeMsgInput').focus()">
+        <div class="icon" style="background:none;font-size:16px">📝</div>
+        <div class="text"><div class="title" style="font-weight:600">추가 요청 사항 (선택)</div></div>
+        <div class="sub" style="flex-shrink:0;max-width:130px;text-align:right">상대방에게 전달할 내용을 입력해주세요.</div>
+        <div class="chev">></div>
+      </div>
+
+      <h2 class="section">상대방에게 메시지</h2>
+      <textarea id="exchangeMsgInput" maxlength="300" oninput="document.getElementById('exchangeMsgCount').textContent=this.value.length" placeholder="교환에 대한 인사나 추가 내용을 입력해주세요."></textarea>
+      <div style="text-align:right;font-size:9px;color:var(--gray);margin-top:-4px"><span id="exchangeMsgCount">0</span> / 300</div>
+
+      <h2 class="section" style="color:var(--green)">교환 시 유의사항</h2>
+      <div class="card" style="background:var(--bg)">
+        <div style="font-size:11px;line-height:2.1;color:var(--dark)">
+          <div>✅ 상대방이 교환 신청을 승인해야 교환이 진행됩니다.</div>
+          <div>✅ 교환 전 상품의 상태와 정보를 다시 한번 확인해주세요.</div>
+          <div>✅ 직거래 시에는 안전한 장소를 선택하여 교환해주세요.</div>
+          <div>✅ 교환 완료 후 서로의 평점을 남길 수 있습니다.</div>
+        </div>
+      </div>
+
       <button class="btn" style="margin-top:20px" onclick="submitExchangeRequest()">교환 신청 보내기</button>
     </div>
   </div>
@@ -1257,9 +1299,81 @@ function bumpAccountStats(email, delta){
   try{ localStorage.setItem(ACCOUNT_DATA_PREFIX+email, JSON.stringify(raw)); }catch(e){}
 }
 
+let selectedMyOfferId = null;
+let exchangeMethodIdx = 0;
+const exchangeMethods = ['직거래 / 택배 중 선택', '직거래', '택배'];
 function goToExchange(){
   currentExchangeProductId = currentProductId;
+  selectedMyOfferId = null;
+  exchangeMethodIdx = 0;
+  renderExchangeProductCard();
+  const pickerEl = document.getElementById('myOfferPicker');
+  if(pickerEl) pickerEl.style.display = 'none';
+  const titleEl = document.getElementById('myOfferTitle');
+  const subEl = document.getElementById('myOfferSub');
+  const iconEl = document.getElementById('myOfferIcon');
+  if(titleEl) titleEl.textContent = '교환할 내 상품 선택';
+  if(subEl) subEl.textContent = '등록한 상품 목록에서 선택해주세요.';
+  if(iconEl) iconEl.textContent = '+';
+  const methodSub = document.getElementById('exchangeMethodSub');
+  if(methodSub) methodSub.textContent = exchangeMethods[0];
   nav('exchange');
+}
+function renderExchangeProductCard(){
+  const el = document.getElementById('exchangeProductCard');
+  if(!el) return;
+  const p = products.find(x=>x.id===currentExchangeProductId);
+  if(!p){ el.innerHTML = ''; return; }
+  const photo = p.photo || (p.photos && p.photos[0]);
+  el.innerHTML = `
+    <div class="thumb" style="width:88px;height:88px;flex-shrink:0;font-size:30px;border-radius:12px;background:#C8E6C9;position:relative">
+      ${p.emoji}
+      ${photo?`<img src="${photo}" alt="${p.name}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:12px" onerror="this.remove()">`:''}
+    </div>
+    <div style="flex:1;min-width:0">
+      <span style="background:var(--pale);color:var(--green);font-size:9px;font-weight:700;padding:3px 9px;border-radius:8px">신청 상품</span>
+      <div style="font-weight:700;font-size:14px;margin-top:6px">${p.name}</div>
+      <div style="font-size:10.5px;color:var(--gray);margin-top:3px">${p.size} 사이즈 &nbsp;|&nbsp; ${p.brand}</div>
+      <div style="font-size:11px;color:var(--gray);margin-top:6px">교환 포인트 &nbsp;<span style="color:var(--green);font-weight:700;font-size:13px">${p.price}</span></div>
+    </div>
+  `;
+}
+function toggleMyOfferPicker(){
+  const pickerEl = document.getElementById('myOfferPicker');
+  if(!pickerEl) return;
+  const opening = pickerEl.style.display === 'none';
+  if(!opening){ pickerEl.style.display = 'none'; return; }
+  const myId = currentUser ? (currentUser.isAdmin ? 'admin' : currentUser.email) : null;
+  const myProducts = products.filter(p=>p.seller===myId && p.id!==currentExchangeProductId);
+  if(!myProducts.length){
+    pickerEl.innerHTML = '<div style="padding:14px;font-size:11px;color:var(--gray);text-align:center">등록한 상품이 없어요. 먼저 상품을 등록해보세요.</div>';
+  } else {
+    pickerEl.innerHTML = myProducts.map(p=>`
+      <div class="list-row" style="padding:10px 12px" onclick="selectMyOffer('${p.id}')">
+        <div class="icon" style="font-size:16px">${p.emoji}</div>
+        <div class="text"><div class="title">${p.name}</div><div class="sub">${p.size} · ${p.price}</div></div>
+      </div>`).join('');
+  }
+  pickerEl.style.display = '';
+}
+function selectMyOffer(productId){
+  selectedMyOfferId = productId;
+  const p = products.find(x=>x.id===productId);
+  const titleEl = document.getElementById('myOfferTitle');
+  const subEl = document.getElementById('myOfferSub');
+  const iconEl = document.getElementById('myOfferIcon');
+  if(p){
+    if(titleEl) titleEl.textContent = p.name;
+    if(subEl) subEl.textContent = `${p.size} · ${p.price} 상품으로 교환을 제안해요`;
+    if(iconEl) iconEl.textContent = p.emoji;
+  }
+  const pickerEl = document.getElementById('myOfferPicker');
+  if(pickerEl) pickerEl.style.display = 'none';
+}
+function cycleExchangeMethod(){
+  exchangeMethodIdx = (exchangeMethodIdx % 2) + 1; // 직거래 -> 택배 -> 직거래 ...
+  const methodSub = document.getElementById('exchangeMethodSub');
+  if(methodSub) methodSub.textContent = exchangeMethods[exchangeMethodIdx];
 }
 async function deleteProduct(id){
   if(!(currentUser && currentUser.isAdmin)){ toast('운영자만 상품을 삭제할 수 있어요'); return; }
@@ -2083,7 +2197,12 @@ function hidePendingModal(){
 async function submitExchangeRequest(){
   const p = products.find(x=>x.id===currentExchangeProductId);
   const msgInput = document.getElementById('exchangeMsgInput');
-  const userMsg = msgInput ? msgInput.value.trim() : '';
+  let userMsg = msgInput ? msgInput.value.trim() : '';
+  const offerProduct = selectedMyOfferId ? products.find(x=>x.id===selectedMyOfferId) : null;
+  const extras = [];
+  if(offerProduct) extras.push(`🔁 제안 상품: ${offerProduct.name}`);
+  if(exchangeMethodIdx>0) extras.push(`📍 희망 방식: ${exchangeMethods[exchangeMethodIdx]}`);
+  if(extras.length) userMsg = (userMsg ? userMsg+'\n\n' : '') + extras.join('\n');
   if(msgInput) msgInput.value = '';
   showPendingModal();
   const resultChatId = await postExchangeMessageToSeller(p, userMsg, '채팅');
