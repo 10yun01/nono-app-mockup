@@ -165,8 +165,10 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
 <body>
 <script type="module">
   // ---- Firebase (Firestore) — real cloud database for the shared product catalog ----
+  // Each product is its own document (not one giant array-in-a-doc), because Firestore
+  // caps each document at 1 MB — cramming every listing's photo into one doc hit that limit.
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
-  import { getFirestore, doc, getDoc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
+  import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
   const firebaseConfig = {
     apiKey: "AIzaSyCRLTkQRLlLcdxyymtTAZGwUSLKBUIYzas",
     authDomain: "nonoapp-40766.firebaseapp.com",
@@ -178,7 +180,7 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
   };
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
-  window.__fb = { db, doc, getDoc, setDoc, onSnapshot };
+  window.__fb = { db, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot };
   window.dispatchEvent(new Event('firebaseReady'));
 </script>
 <div class="phone" id="phone">
@@ -1026,8 +1028,13 @@ function activeProductSeed(){
 }
 // ---- Shared product catalog (REAL cloud database via Firebase Firestore) ----
 // Unlike localStorage, this is backed by an actual server (Google Cloud Firestore):
-// any account, on any device, browser, or tab sees the same data. All registered
-// listings live in one Firestore document that every visitor reads/writes.
+// any account, on any device, browser, or tab sees the same data.
+// IMPORTANT: each product is stored as its OWN Firestore document in a 'products'
+// collection (not all crammed into one document's array field) — Firestore caps every
+// single document at 1 MB, and photos alone pushed a shared array-in-one-doc over that
+// limit, which is exactly why saves started failing once an image was attached.
+// Seed (built-in) products are never written to Firestore at all — only items that
+// real accounts register go to the cloud, keeping each write small and independent.
 function waitForFirebase(){
   return new Promise(resolve=>{
     if(window.__fb){ resolve(); return; }
@@ -1035,43 +1042,58 @@ function waitForFirebase(){
   });
 }
 async function loadSharedProducts(){
-  let saved = null;
+  let userItems = [];
   try{
     await waitForFirebase();
-    const { db, doc, getDoc } = window.__fb;
-    const snap = await getDoc(doc(db, 'nono', 'products'));
-    saved = snap.exists() ? snap.data().items : null;
-  } catch(e){ saved = null; console.warn('Firestore load failed, falling back to seed only:', e); }
-  if(saved && Array.isArray(saved) && saved.length){
-    // 시드 상품은 항상 최신 삭제 목록을 반영하고, 저장된 배열에서 유저 등록 상품만 이어붙인다
-    const userItems = saved.filter(p=>p.id.startsWith('user') && !deletedProductIds.includes(p.id));
-    products = activeProductSeed().map(p=>({...p})).concat(userItems);
-  } else {
-    products = activeProductSeed().map(p=>({...p}));
-  }
+    const { db, collection, getDocs } = window.__fb;
+    const snap = await getDocs(collection(db, 'products'));
+    snap.forEach(docSnap=>{
+      const data = docSnap.data();
+      if(data && data.id && data.id.startsWith('user') && !deletedProductIds.includes(data.id)) userItems.push(data);
+    });
+  } catch(e){ userItems = []; console.warn('Firestore load failed, falling back to seed only:', e); }
+  products = activeProductSeed().map(p=>({...p})).concat(userItems);
 }
-async function saveSharedProducts(){
-  // favorited는 계정별 값이라 공용 저장소에는 포함하지 않는다 (각자 계정 데이터에 따로 저장됨)
-  const toSave = products.map(p=>{ const {favorited, ...rest} = p; return rest; });
+async function saveOneProductToCloud(product){
   try{
     await waitForFirebase();
     const { db, doc, setDoc } = window.__fb;
-    await setDoc(doc(db, 'nono', 'products'), { items: toSave, updatedAt: new Date().toISOString() });
+    const { favorited, ...rest } = product; // favorited는 계정별 값이라 클라우드에는 저장하지 않음
+    await setDoc(doc(db, 'products', product.id), rest);
   } catch(e){
     console.warn('Firestore save failed:', e);
     toast('⚠️ 클라우드 저장에 실패했어요. Firestore 보안 규칙을 확인해주세요');
   }
+}
+async function deleteOneProductFromCloud(id){
+  if(!id.startsWith('user')) return; // 시드 상품은 애초에 클라우드에 없음
+  try{
+    await waitForFirebase();
+    const { db, doc, deleteDoc } = window.__fb;
+    await deleteDoc(doc(db, 'products', id));
+  } catch(e){ console.warn('Firestore delete failed:', e); }
+}
+async function updateProductStatusInCloud(id, status){
+  if(!id.startsWith('user')) return; // 시드 상품은 클라우드 문서가 없으므로 상태는 로컬에서만 관리
+  try{
+    await waitForFirebase();
+    const { db, doc, updateDoc } = window.__fb;
+    await updateDoc(doc(db, 'products', id), { status });
+  } catch(e){ console.warn('Firestore status update failed:', e); }
 }
 let products = [];
 // Real-time listener: when ANY account changes the catalog (anywhere, any device),
 // Firestore pushes the update to every open tab automatically — no polling needed.
 function startProductsLiveSync(){
   waitForFirebase().then(()=>{
-    const { db, doc, onSnapshot } = window.__fb;
-    onSnapshot(doc(db, 'nono', 'products'), (snap)=>{
-      if(!currentUser || !snap.exists()) return;
-      const saved = snap.data().items || [];
-      const userItems = saved.filter(p=>p.id.startsWith('user') && !deletedProductIds.includes(p.id));
+    const { db, collection, onSnapshot } = window.__fb;
+    onSnapshot(collection(db, 'products'), (snap)=>{
+      if(!currentUser) return;
+      const userItems = [];
+      snap.forEach(docSnap=>{
+        const data = docSnap.data();
+        if(data && data.id && data.id.startsWith('user') && !deletedProductIds.includes(data.id)) userItems.push(data);
+      });
       let favSet = new Set();
       try{
         const raw = JSON.parse(localStorage.getItem(ACCOUNT_DATA_PREFIX+currentUser.email) || 'null');
@@ -1201,7 +1223,7 @@ async function deleteProduct(id){
   if(!deletedProductIds.includes(id)) deletedProductIds.push(id);
   saveDeletedProducts();
   products = products.filter(p=>p.id!==id);
-  await saveSharedProducts();
+  await deleteOneProductFromCloud(id);
   renderGrids();
   toast('상품이 삭제됐어요 🗑️');
   nav('home');
@@ -1399,7 +1421,6 @@ async function saveAccountData(email){
   };
   try{ localStorage.setItem(ACCOUNT_DATA_PREFIX+email, JSON.stringify(data)); }
   catch(e){ /* storage unavailable — this account's activity just won't persist */ }
-  await saveSharedProducts(); // 상품 목록은 진짜 클라우드(Firestore)라 다른 계정에서도 즉시 보임
 }
 async function loadAccountData(email){
   let data = null;
@@ -2047,7 +2068,7 @@ async function postExchangeMessageToSeller(p, userMsg, viaLabel){
     saveExchangeRequests();
     const liveProduct = products.find(x=>x.id===p.id);
     if(liveProduct) liveProduct.status = 'pending';
-    await saveSharedProducts();
+    await updateProductStatusInCloud(p.id, 'pending');
     syncTradeChatsFor(myId); // 내 채팅 목록에 즉시 반영
   } else {
     // 봇 판매자와의 거래는 승인할 실제 계정이 없으므로 기존처럼 즉시 성사 처리 (내 로컬 채팅에만 존재)
@@ -2065,7 +2086,7 @@ async function postExchangeMessageToSeller(p, userMsg, viaLabel){
     updateProgress();
     const liveProduct = products.find(x=>x.id===p.id);
     if(liveProduct) liveProduct.status = 'traded';
-    await saveSharedProducts();
+    await updateProductStatusInCloud(p.id, 'traded');
     c.product.status = '교환 완료';
     c.messages.push({from:'system', text:`🔔 [${p.name}] ${viaLabel} 교환이 완료됐어요!`});
     c.time = '방금';
@@ -2125,7 +2146,7 @@ async function acceptExchangeRequest(reqId){
   saveExchangeRequests();
   const liveProduct = products.find(x=>x.id===req.productId);
   if(liveProduct) liveProduct.status = 'traded';
-  await saveSharedProducts();
+  await updateProductStatusInCloud(req.productId, 'traded');
   bumpAccountStats(req.requesterId, { transactions:1, co2Saved:2.3 }); // 요청자 몫 (로그인 중이 아닐 수 있음)
   stats.transactions += 1; stats.co2Saved = +(stats.co2Saved + 2.3).toFixed(1); updateProgress(); // 나(주인) 몫
   const myId = currentUser ? (currentUser.isAdmin?'admin':currentUser.email) : null;
@@ -2145,7 +2166,7 @@ async function declineExchangeRequest(reqId){
   saveExchangeRequests();
   const liveProduct = products.find(x=>x.id===req.productId);
   if(liveProduct) liveProduct.status = 'available';
-  await saveSharedProducts();
+  await updateProductStatusInCloud(req.productId, 'available');
   const myId = currentUser ? (currentUser.isAdmin?'admin':currentUser.email) : null;
   syncTradeChatsFor(myId);
   renderChatList();
@@ -2427,7 +2448,9 @@ async function registerProduct(){
   renderGrids();
   stats.registered += 1;
   updateProgress();
-  if(currentUser) saveAccountData(currentUser.email); // 새로고침해도 등록한 상품이 사라지지 않도록 즉시 저장
+  toast('☁️ 상품을 클라우드에 저장하고 있어요...');
+  await saveOneProductToCloud(newProduct); // 실제 상품 데이터베이스(Firestore)에 저장
+  if(currentUser) await saveAccountData(currentUser.email); // 등록 통계/포인트 등 내 계정 데이터 저장
 
   // reset form
   document.getElementById('regName').value='';
