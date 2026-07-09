@@ -1912,6 +1912,17 @@ function renderPageViewerList(){
 function viewSamplePage(id){
   const bar = document.getElementById('samplePreviewBar');
   if(bar) bar.style.display = 'flex';
+  // 일반 화면 흐름에서는 각 화면으로 이동하기 직전에 해당 데이터를 채우는 함수가 호출되지만,
+  // 샘플 뷰어는 화면을 직접 골라서 들어가기 때문에 그 준비 과정이 생략되어 빈 화면으로 보일 수 있었다.
+  // 어떤 샘플을 열든 관련 데이터를 미리 한 번씩 새로 그려서 이 문제를 방지한다.
+  try{
+    updateProgress();      // 레벨/배지/거래내역
+    renderGrids();         // 홈/카테고리/관심상품 등 상품 그리드 전반
+    renderPoints();        // 포인트 화면
+    renderAddressList();   // 주소 관리
+    renderLanguageList();  // 언어 설정
+    renderChatList();      // 채팅 목록
+  }catch(e){ /* 아직 준비 안 된 화면의 함수는 조용히 건너뜀 */ }
   switch(id){
     case 'product': {
       const p = products[0] || (productSeed && productSeed[0]);
