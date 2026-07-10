@@ -1587,6 +1587,14 @@ function openTradeDetail(reqId){
           <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0"><span style="color:var(--gray)">교환 포인트</span><span style="color:var(--green);font-weight:700">${req.productPrice||''}</span></div>
           <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0"><span style="color:var(--gray)">신청자</span><span>${req.requesterName}</span></div>
           <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0"><span style="color:var(--gray)">신청일시</span><span>${fmt(created)}</span></div>
+          ${req.offerProductName?`<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0"><span style="color:var(--gray)">🔁 제안 상품</span><span>${req.offerProductName}</span></div>`:''}
+        </div>
+        <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px">📦 교환 방식 &amp; 배송지</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0"><span style="color:var(--gray)">교환 방식</span><span>${req.exchangeMethod || '협의 필요'}</span></div>
+          ${req.exchangeMethod==='택배' ? `<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0"><span style="color:var(--gray)">배송지</span><span style="text-align:right;max-width:60%">${req.deliveryAddress || '주소 미등록 — 마이페이지에서 등록해주세요'}</span></div>`
+            : req.exchangeMethod==='직거래' ? `<div style="font-size:10.5px;color:var(--gray);margin-top:2px">직거래는 채팅으로 만날 장소와 시간을 협의해주세요.</div>`
+            : `<div style="font-size:10.5px;color:var(--gray);margin-top:2px">아직 교환 방식이 정해지지 않았어요. 채팅으로 협의해주세요.</div>`}
         </div>
         <button class="btn" style="margin-top:16px" onclick="document.getElementById('tradeDetailModal').remove()">닫기</button>
       </div>
@@ -2308,7 +2316,12 @@ async function submitExchangeRequest(){
   if(extras.length) userMsg = (userMsg ? userMsg+'\n\n' : '') + extras.join('\n');
   if(msgInput) msgInput.value = '';
   showPendingModal();
-  const resultChatId = await postExchangeMessageToSeller(p, userMsg, '채팅');
+  const extraData = {
+    offerProductName: offerProduct ? offerProduct.name : null,
+    exchangeMethod: exchangeMethodIdx>0 ? exchangeMethods[exchangeMethodIdx] : null,
+    deliveryAddress: (exchangeMethodIdx===2 && addresses[0]) ? addresses[0].detail : null // 택배 선택 시에만 배송지 첨부
+  };
+  const resultChatId = await postExchangeMessageToSeller(p, userMsg, '채팅', extraData);
   if(resultChatId){
     setTimeout(()=>{
       hidePendingModal();
@@ -2362,7 +2375,7 @@ function submitSupportInquiry(){
   updateSupportBtn();
   toast('문의가 등록되었어요 🌱 채팅 탭에서 확인할 수 있어요');
 }
-async function postExchangeMessageToSeller(p, userMsg, viaLabel){
+async function postExchangeMessageToSeller(p, userMsg, viaLabel, extraData){
   if(!p) return null;
   const sellerId = p.seller || 'jiyeon'; // [추측] 판매자 매핑이 없는 상품은 기본 상대(지연)로 연결
   const myId = currentUser ? (currentUser.isAdmin ? 'admin' : currentUser.email) : null;
@@ -2374,7 +2387,10 @@ async function postExchangeMessageToSeller(p, userMsg, viaLabel){
     if(!req){
       req = { id:'req'+Date.now(), productId:p.id, productName:p.name, productEmoji:p.emoji, productPrice:p.price, productPhoto: p.photo||(p.photos&&p.photos[0])||null,
               requesterId:myId, requesterName:currentUser.name,
-              ownerId:sellerId, status:'pending', createdAt:new Date().toISOString(), messages:[] };
+              ownerId:sellerId, status:'pending', createdAt:new Date().toISOString(), messages:[],
+              offerProductName: extraData && extraData.offerProductName || null,
+              exchangeMethod: extraData && extraData.exchangeMethod || null,
+              deliveryAddress: extraData && extraData.deliveryAddress || null };
       exchangeRequests.push(req);
     }
     if(userMsg) req.messages.push({sender:'requester', text:userMsg});
