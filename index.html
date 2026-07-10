@@ -2413,26 +2413,16 @@ function renderChatExtra(){
   if(!c || !c._tradeReqId){ el.innerHTML=''; return; }
   const req = exchangeRequests.find(r=>r.id===c._tradeReqId);
   if(!req || req.status!=='pending'){ el.innerHTML=''; return; }
-  if(c._iAmOwner){
-    el.innerHTML = `
-      <div class="card" style="background:var(--pale);margin-top:10px">
-        <b style="font-size:12px">📦 [${req.productName}] 교환 신청이 도착했어요</b>
-        <div style="font-size:10px;color:var(--gray);margin-top:4px">${req.requesterName}님의 신청을 수락하시겠어요?</div>
-        <div class="btn-row" style="margin-top:10px;gap:6px">
-          <button class="btn outline" style="font-size:10.5px;padding:8px 4px" onclick="declineExchangeRequest('${req.id}')">거절하기</button>
-          <button class="btn outline" style="font-size:10.5px;padding:8px 4px;color:var(--green);border-color:var(--green)" onclick="requestMoreInfo('${req.id}')">더 요청하기</button>
-          <button class="btn" style="font-size:10.5px;padding:8px 4px" onclick="acceptExchangeRequest('${req.id}')">수락하기</button>
-        </div>
-      </div>`;
-  } else {
-    // 신청을 보낸 쪽에는 취소할 수 있는 버튼을 보여준다 (그냥 기다리기만 하는 화면이 되지 않도록)
-    el.innerHTML = `
-      <div class="card" style="margin-top:10px">
-        <b style="font-size:12px">⏳ 상대방의 수락을 기다리고 있어요</b>
-        <div style="font-size:10px;color:var(--gray);margin-top:4px">신청을 취소하고 싶다면 아래 버튼을 눌러주세요.</div>
-        <button class="btn outline" style="font-size:11px;padding:8px;margin-top:10px;color:var(--red);border-color:var(--red)" onclick="cancelExchangeRequest('${req.id}')">신청 취소하기</button>
-      </div>`;
-  }
+  el.innerHTML = `
+    <div class="card" style="background:var(--pale);margin-top:10px">
+      <b style="font-size:12px">📦 [${req.productName}] 교환 신청 진행중</b>
+      <div style="font-size:10px;color:var(--gray);margin-top:4px">${c._iAmOwner ? req.requesterName+'님의 신청을 수락하시겠어요?' : '상대방의 응답을 기다리는 중이에요.'}</div>
+      <div class="btn-row" style="margin-top:10px;gap:6px">
+        <button class="btn outline" style="font-size:10.5px;padding:8px 4px" onclick="declineExchangeRequest('${req.id}')">거절하기</button>
+        <button class="btn outline" style="font-size:10.5px;padding:8px 4px;color:var(--green);border-color:var(--green)" onclick="requestMoreInfo('${req.id}')">더 요청하기</button>
+        <button class="btn" style="font-size:10.5px;padding:8px 4px" onclick="acceptExchangeRequest('${req.id}')">수락하기</button>
+      </div>
+    </div>`;
 }
 async function cancelExchangeRequest(reqId){
   const req = exchangeRequests.find(r=>r.id===reqId);
