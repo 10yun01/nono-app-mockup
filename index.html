@@ -680,6 +680,10 @@ label.field-label{display:block;font-size:11px;color:var(--gray);margin:14px 0 6
     <div class="header"><h1>채팅</h1></div>
     <div class="content">
       <div class="search-bar">🔍 대화 상대 검색</div>
+      <div style="display:flex;gap:8px;margin:2px 0 10px">
+        <span class="chip active" id="chatTabAll" onclick="setChatFilter('all')">전체</span>
+        <span class="chip" id="chatTabTrade" onclick="setChatFilter('trade')">📦 교환 신청 <span id="chatTradePendingBadge" style="display:none;background:var(--red);color:#fff;border-radius:8px;padding:0 5px;font-size:9px;margin-left:3px"></span></span>
+      </div>
       <div id="chatListRows"></div>
     </div>
     <div class="bottom-nav" id="nav-chat"></div>
@@ -1478,20 +1482,36 @@ function toggleFavorite(id){
   updateProgress();
 }
 
+let chatFilter = 'all';
+function setChatFilter(f){
+  chatFilter = f;
+  document.getElementById('chatTabAll').classList.toggle('active', f==='all');
+  document.getElementById('chatTabTrade').classList.toggle('active', f==='trade');
+  renderChatList();
+}
 function renderChatList(){
   const el = document.getElementById('chatListRows');
-  if(chats.length===0){
-    el.innerHTML = `<p style="text-align:center;color:var(--gray);font-size:12px;margin-top:60px">
+  const myId = currentUser ? (currentUser.isAdmin ? 'admin' : currentUser.email) : null;
+  const pendingCount = chats.filter(c=>c._tradeReqId && c._iAmOwner && c.product && c.product.status==='교환 신청중').length;
+  const badgeEl = document.getElementById('chatTradePendingBadge');
+  if(badgeEl){ badgeEl.style.display = pendingCount>0 ? '' : 'none'; badgeEl.textContent = pendingCount; }
+
+  const list = chatFilter==='trade' ? chats.filter(c=>!!c._tradeReqId) : chats;
+  if(list.length===0){
+    el.innerHTML = chatFilter==='trade'
+      ? `<p style="text-align:center;color:var(--gray);font-size:12px;margin-top:60px">아직 교환 신청이 없어요.<br><span style="font-size:11px">상품 상세에서 교환을 신청하면 여기에 표시돼요.</span></p>`
+      : `<p style="text-align:center;color:var(--gray);font-size:12px;margin-top:60px">
       아직 대화가 없어요.<br><span style="font-size:11px">상품 상세에서 "채팅하기"로 거래를 시작하면 여기에 대화가 생겨요.</span>
     </p>`;
     return;
   }
-  el.innerHTML = chats.map(c=>{
+  el.innerHTML = list.map(c=>{
     const lastMsg = c.messages[c.messages.length-1].text;
+    const needsAction = c._tradeReqId && c._iAmOwner && c.product && c.product.status==='교환 신청중';
     return `
-    <div class="list-row" onclick="openChatRoom('${c.id}')">
+    <div class="list-row" onclick="openChatRoom('${c.id}')" style="${needsAction?'background:var(--pale);border-radius:10px':''}">
       <div class="icon" style="border-radius:50%;background:var(--pale)">${c.avatar}</div>
-      <div class="text"><div class="title">${c.name}</div><div class="sub">${lastMsg}</div></div>
+      <div class="text"><div class="title">${c.name}${needsAction?' <span style="color:var(--green);font-size:9px;font-weight:700">· 수락 대기중</span>':''}</div><div class="sub">${lastMsg}</div></div>
       <div style="text-align:right"><div style="font-size:9px;color:var(--gray)">${c.time}</div>
       ${c.badge>0?`<div class="badge-dot" style="margin-left:auto;margin-top:4px">${c.badge}</div>`:''}</div>
     </div>`;
