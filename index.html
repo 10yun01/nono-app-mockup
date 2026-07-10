@@ -1532,11 +1532,65 @@ function openChatRoom(chatId){
 
 function renderChatMessages(c){
   document.getElementById('chatMessages').innerHTML = c.messages.map(m=>{
-    if(m.from==='system') return `<div class="msg-row center"><div class="bubble system">${m.text}</div></div>`;
+    if(m.from==='system'){
+      // 교환 관련 시스템 메시지는 상품 썸네일 + 상태 + "거래 정보 확인" 버튼이 있는 카드로 보여준다
+      const isTradeMsg = c._tradeReqId && (m.text.includes('교환 신청을 보냈어요') || m.text.includes('수락했어요') || m.text.includes('거절됐어요'));
+      if(isTradeMsg){
+        const photo = c.product.photo;
+        return `<div class="msg-row"><div class="bubble" style="background:#fff;border:1px solid var(--border);padding:12px;max-width:82%">
+          <div style="display:flex;gap:10px;align-items:center">
+            <div class="thumb" style="width:44px;height:44px;flex-shrink:0;font-size:18px;border-radius:8px;background:#C8E6C9;position:relative">
+              ${c.product.emoji}${photo?`<img src="${photo}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:8px" onerror="this.remove()">`:''}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:12px">${c.product.name}</div>
+              <div style="font-size:10px;color:var(--gray);margin-top:2px">${m.text.replace(/^🔔 |^🎉 |^😥 /,'').replace(/\[.*?\]\s*/,'')}</div>
+            </div>
+          </div>
+          <button style="width:100%;margin-top:10px;background:var(--pale);color:var(--green);border:none;border-radius:10px;padding:9px;font-size:11px;font-weight:700;cursor:pointer" onclick="openTradeDetail('${c._tradeReqId}')">거래 정보 확인</button>
+        </div></div>`;
+      }
+      return `<div class="msg-row center"><div class="bubble system">${m.text}</div></div>`;
+    }
     return `<div class="msg-row" ${m.from==='me'?'style="align-items:flex-end"':''}><div class="bubble ${m.from==='me'?'right':'left'}">${m.text}</div></div>`;
   }).join('');
   const content = document.querySelector('#screen-chatroom .content');
   if(content) content.scrollTop = content.scrollHeight;
+}
+function openTradeDetail(reqId){
+  const req = exchangeRequests.find(r=>r.id===reqId);
+  if(!req){ toast('거래 정보를 찾을 수 없어요'); return; }
+  const created = new Date(req.createdAt);
+  const fmt = d => `${d.getMonth()+1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  const steps = [
+    { label:'교환 신청', done:true, time:fmt(created) },
+    { label:'상대방 확인 중', done: req.status!=='pending' || true, time: req.status==='pending' ? '진행중' : fmt(created) },
+    { label: req.status==='declined' ? '거절됨' : '수락 완료', done: req.status!=='pending', time: req.status!=='pending' ? '완료' : '대기중' },
+    { label:'거래 완료', done: req.status==='accepted', time: req.status==='accepted' ? '완료' : '대기중' },
+  ];
+  const stepsHtml = steps.map(s=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0">
+      <span style="font-size:15px;color:${s.done?'var(--green)':'var(--gray)'}">${s.done?'✅':'⬜'}</span>
+      <span style="flex:1;font-size:12.5px;font-weight:600;color:${s.done?'var(--dark)':'var(--gray)'}">${s.label}</span>
+      <span style="font-size:10px;color:var(--gray)">${s.time}</span>
+    </div>`).join('');
+  const modalHtml = `
+    <div id="tradeDetailModal" style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:flex-end" onclick="if(event.target===this)this.remove()">
+      <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:400px;margin:0 auto;padding:20px;max-height:80vh;overflow-y:auto">
+        <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px"></div>
+        <h2 style="font-size:15px;margin:0 0 14px">거래 진행 상황</h2>
+        <div>${stepsHtml}</div>
+        <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px">상품 정보</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0"><span style="color:var(--gray)">상품명</span><span>${req.productName}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0"><span style="color:var(--gray)">교환 포인트</span><span style="color:var(--green);font-weight:700">${req.productPrice||''}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0"><span style="color:var(--gray)">신청자</span><span>${req.requesterName}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0"><span style="color:var(--gray)">신청일시</span><span>${fmt(created)}</span></div>
+        </div>
+        <button class="btn" style="margin-top:16px" onclick="document.getElementById('tradeDetailModal').remove()">닫기</button>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
 function renderNotif(){
@@ -2289,7 +2343,7 @@ async function postExchangeMessageToSeller(p, userMsg, viaLabel){
     // 실제 계정과의 거래: 요청 자체가 공용 저장소에 저장되는 "공유 대화방" 역할을 한다 (문의 시스템과 동일한 방식)
     let req = exchangeRequests.find(r=>r.productId===p.id && r.requesterId===myId && r.status==='pending');
     if(!req){
-      req = { id:'req'+Date.now(), productId:p.id, productName:p.name, productEmoji:p.emoji, productPrice:p.price,
+      req = { id:'req'+Date.now(), productId:p.id, productName:p.name, productEmoji:p.emoji, productPrice:p.price, productPhoto: p.photo||(p.photos&&p.photos[0])||null,
               requesterId:myId, requesterName:currentUser.name,
               ownerId:sellerId, status:'pending', createdAt:new Date().toISOString(), messages:[] };
       exchangeRequests.push(req);
@@ -2346,7 +2400,7 @@ function syncTradeChatsFor(myId){
     });
     chats.unshift({
       id: 'trade_'+r.id, name: otherDisplay.name, avatar: otherDisplay.avatar||'🙂', time:'방금', badge:0,
-      product: {emoji:r.productEmoji, name:r.productName, price:r.productPrice||'', status:statusLabel},
+      product: {emoji:r.productEmoji, name:r.productName, price:r.productPrice||'', status:statusLabel, photo:r.productPhoto||null},
       messages: msgs, _tradeReqId: r.id, _iAmOwner: iAmOwner
     });
   });
@@ -2358,7 +2412,8 @@ function renderChatExtra(){
   const c = chats.find(x=>x.id===currentChatId);
   if(!c || !c._tradeReqId){ el.innerHTML=''; return; }
   const req = exchangeRequests.find(r=>r.id===c._tradeReqId);
-  if(req && req.status==='pending' && c._iAmOwner){
+  if(!req || req.status!=='pending'){ el.innerHTML=''; return; }
+  if(c._iAmOwner){
     el.innerHTML = `
       <div class="card" style="background:var(--pale);margin-top:10px">
         <b style="font-size:12px">📦 [${req.productName}] 교환 신청이 도착했어요</b>
@@ -2370,8 +2425,31 @@ function renderChatExtra(){
         </div>
       </div>`;
   } else {
-    el.innerHTML = '';
+    // 신청을 보낸 쪽에는 취소할 수 있는 버튼을 보여준다 (그냥 기다리기만 하는 화면이 되지 않도록)
+    el.innerHTML = `
+      <div class="card" style="margin-top:10px">
+        <b style="font-size:12px">⏳ 상대방의 수락을 기다리고 있어요</b>
+        <div style="font-size:10px;color:var(--gray);margin-top:4px">신청을 취소하고 싶다면 아래 버튼을 눌러주세요.</div>
+        <button class="btn outline" style="font-size:11px;padding:8px;margin-top:10px;color:var(--red);border-color:var(--red)" onclick="cancelExchangeRequest('${req.id}')">신청 취소하기</button>
+      </div>`;
   }
+}
+async function cancelExchangeRequest(reqId){
+  const req = exchangeRequests.find(r=>r.id===reqId);
+  if(!req || req.status!=='pending') return;
+  req.status = 'declined';
+  req.messages.push({sender:'system', text:`🚫 [${req.productName}] 신청자가 교환 신청을 취소했어요.`});
+  await saveOneRequestToCloud(req);
+  const liveProduct = products.find(x=>x.id===req.productId);
+  if(liveProduct) liveProduct.status = 'available';
+  await updateProductStatusInCloud(req.productId, 'available');
+  const myId = currentUser ? (currentUser.isAdmin?'admin':currentUser.email) : null;
+  syncTradeChatsFor(myId);
+  renderChatList();
+  const cc = chats.find(x=>x._tradeReqId===reqId);
+  if(cc){ currentChatId = cc.id; renderChatMessages(cc); }
+  renderChatExtra();
+  toast('교환 신청을 취소했어요');
 }
 function requestMoreInfo(reqId){
   // 바로 결정하지 않고, 상대방에게 추가 정보를 물어보는 메시지를 입력창에 채워준다 (신청 상태는 대기중 유지)
