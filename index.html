@@ -2343,6 +2343,7 @@ async function submitExchangeRequest(){
   showPendingModal();
   const extraData = {
     offerProductName: offerProduct ? offerProduct.name : null,
+    offerProductId: offerProduct ? offerProduct.id : null,
     exchangeMethod: exchangeMethodIdx>0 ? exchangeMethods[exchangeMethodIdx] : null,
     deliveryAddress: (exchangeMethodIdx===2 && addresses[0]) ? addresses[0].detail : null // 택배 선택 시에만 배송지 첨부
   };
@@ -2414,6 +2415,7 @@ async function postExchangeMessageToSeller(p, userMsg, viaLabel, extraData){
               requesterId:myId, requesterName:currentUser.name,
               ownerId:sellerId, status:'pending', createdAt:new Date().toISOString(), messages:[],
               offerProductName: extraData && extraData.offerProductName || null,
+              offerProductId: extraData && extraData.offerProductId || null,
               exchangeMethod: extraData && extraData.exchangeMethod || null,
               deliveryAddress: extraData && extraData.deliveryAddress || null };
       exchangeRequests.push(req);
@@ -2483,13 +2485,34 @@ function renderChatExtra(){
   if(!c || !c._tradeReqId){ el.innerHTML=''; return; }
   const req = exchangeRequests.find(r=>r.id===c._tradeReqId);
   if(!req){ el.innerHTML=''; return; }
+  const myId = currentUser ? (currentUser.isAdmin ? 'admin' : currentUser.email) : null;
+
   if(req.status==='accepted'){
-    // 수락은 됐지만 아직 최종 확정 전 — 실제 물건을 주고받은 뒤 양쪽 누구나 확정할 수 있다
+    // 수락은 됐지만 아직 최종 확정 전 — 양쪽 모두 각자 확정을 눌러야 최종 완료된다
+    const iConfirmed = req.confirmedBy && req.confirmedBy.includes(myId);
+    if(iConfirmed){
+      el.innerHTML = `
+        <div class="card" style="background:var(--pale);margin-top:10px">
+          <b style="font-size:12px">⏳ 확정 완료 — 상대방을 기다리는 중</b>
+          <div style="font-size:10px;color:var(--gray);margin-top:4px">상대방도 확정하면 거래가 최종 완료돼요.</div>
+        </div>`;
+    } else {
+      el.innerHTML = `
+        <div class="card" style="background:var(--pale);margin-top:10px">
+          <b style="font-size:12px">🤝 [${req.productName}] 수락됨 · 확정 대기중</b>
+          <div style="font-size:10px;color:var(--gray);margin-top:4px">실제로 물건을 주고받으셨다면 아래 버튼으로 거래를 확정해주세요. (양쪽 모두 확정해야 완료돼요)</div>
+          <button class="btn" style="margin-top:10px;font-size:11px;padding:9px" onclick="confirmExchange('${req.id}')">✅ 교환 확정하기</button>
+        </div>`;
+    }
+    return;
+  }
+  if(req.status==='completed' && currentUser && currentUser.isAdmin){
+    // 운영자 전용: 확정된 거래를 되돌릴 수 있는 관리 옵션
     el.innerHTML = `
-      <div class="card" style="background:var(--pale);margin-top:10px">
-        <b style="font-size:12px">🤝 [${req.productName}] 수락됨 · 확정 대기중</b>
-        <div style="font-size:10px;color:var(--gray);margin-top:4px">실제로 물건을 주고받으셨다면 아래 버튼으로 거래를 확정해주세요.</div>
-        <button class="btn" style="margin-top:10px;font-size:11px;padding:9px" onclick="confirmExchange('${req.id}')">✅ 교환 확정하기</button>
+      <div class="card" style="margin-top:10px">
+        <b style="font-size:11.5px">🛠️ 운영자 관리</b>
+        <div style="font-size:9.5px;color:var(--gray);margin-top:4px">이 거래는 확정 완료됐어요. 문제가 있다면 취소할 수 있어요.</div>
+        <button class="btn outline" style="margin-top:8px;font-size:10.5px;padding:8px;color:var(--red);border-color:var(--red)" onclick="adminCancelConfirmedTrade('${req.id}')">거래 확정 취소하기</button>
       </div>`;
     return;
   }
@@ -2602,15 +2625,35 @@ async function acceptExchangeRequest(reqId){
 async function confirmExchange(reqId){
   const req = exchangeRequests.find(r=>r.id===reqId);
   if(!req || req.status!=='accepted') return;
-  req.status = 'completed';
-  req.messages.push({sender:'system', text:`🎉 [${req.productName}] 교환이 최종 확정됐어요! 거래가 완료됐습니다.`});
-  await saveOneRequestToCloud(req);
-  const liveProduct = products.find(x=>x.id===req.productId);
-  if(liveProduct) liveProduct.status = 'traded';
-  await updateProductStatusInCloud(req.productId, 'traded');
-  bumpAccountStats(req.requesterId, { transactions:1, co2Saved:2.3 }); // 요청자 몫 (로그인 중이 아닐 수 있음)
-  stats.transactions += 1; stats.co2Saved = +(stats.co2Saved + 2.3).toFixed(1); updateProgress(); // 나(주인) 몫
-  const myId = currentUser ? (currentUser.isAdmin?'admin':currentUser.email) : null;
+  const myId = currentUser ? (currentUser.isAdmin ? 'admin' : currentUser.email) : null;
+  if(!req.confirmedBy) req.confirmedBy = [];
+  if(req.confirmedBy.includes(myId)){ toast('이미 확정하셨어요. 상대방의 확정을 기다리는 중이에요'); return; }
+  req.confirmedBy.push(myId);
+  const iAmOwner = myId === req.ownerId;
+  const myLabel = iAmOwner ? '상품 주인' : '신청자';
+  const bothConfirmed = req.confirmedBy.includes(req.ownerId) && req.confirmedBy.includes(req.requesterId);
+
+  if(bothConfirmed){
+    req.status = 'completed';
+    req.messages.push({sender:'system', text:`🎉 [${req.productName}] 양쪽 모두 확정했어요! 거래가 최종 완료됐습니다.`});
+    await saveOneRequestToCloud(req);
+    const liveProduct = products.find(x=>x.id===req.productId);
+    if(liveProduct) liveProduct.status = 'traded';
+    await updateProductStatusInCloud(req.productId, 'traded');
+    if(req.offerProductId){ // 제안했던 내 상품도 거래완료 처리 (교환된 양쪽 상품 모두 반영)
+      const offerLive = products.find(x=>x.id===req.offerProductId);
+      if(offerLive) offerLive.status = 'traded';
+      await updateProductStatusInCloud(req.offerProductId, 'traded');
+    }
+    bumpAccountStats(req.requesterId, { transactions:1, co2Saved:2.3 }); // 요청자 몫 (로그인 중이 아닐 수 있음)
+    bumpAccountStats(req.ownerId, { transactions:1, co2Saved:2.3 }); // 주인 몫 (로그인 중이 아닐 수 있음)
+    if(myId === req.requesterId || myId === req.ownerId){ stats.transactions += 1; stats.co2Saved = +(stats.co2Saved + 2.3).toFixed(1); updateProgress(); }
+    toast('양쪽 모두 확정해서 거래가 완료됐어요 🎉');
+  } else {
+    req.messages.push({sender:'system', text:`✅ ${myLabel}(${currentUser.name})님이 교환을 확정했어요. 상대방도 확정하면 거래가 완료돼요.`});
+    await saveOneRequestToCloud(req);
+    toast('확정했어요! 상대방도 확정하면 거래가 완료돼요');
+  }
   syncTradeChatsFor(myId);
   renderChatList();
   renderGrids(); // 상품 목록에 반투명 "거래 완료" 표시 반영
@@ -2618,7 +2661,35 @@ async function confirmExchange(reqId){
   if(cc){ currentChatId = cc.id; renderChatMessages(cc); }
   renderChatExtra();
   if(currentUser) saveAccountData(currentUser.email);
-  toast('교환이 확정됐어요 🎉');
+}
+// 운영자 전용: 실수로(또는 문제가 생겨) 확정된 거래를 되돌린다 — 상품을 다시 거래가능 상태로 복구
+async function adminCancelConfirmedTrade(reqId){
+  if(!(currentUser && currentUser.isAdmin)){ toast('운영자만 사용할 수 있어요'); return; }
+  const req = exchangeRequests.find(r=>r.id===reqId);
+  if(!req || req.status!=='completed') return;
+  req.status = 'accepted';
+  req.confirmedBy = [];
+  req.messages.push({sender:'system', text:`🛠️ 운영자가 확정된 거래를 취소했어요. 다시 확정 대기 상태로 되돌아갔어요.`});
+  await saveOneRequestToCloud(req);
+  const liveProduct = products.find(x=>x.id===req.productId);
+  if(liveProduct) liveProduct.status = 'accepted';
+  await updateProductStatusInCloud(req.productId, 'accepted');
+  if(req.offerProductId){
+    const offerLive = products.find(x=>x.id===req.offerProductId);
+    if(offerLive) offerLive.status = 'accepted';
+    await updateProductStatusInCloud(req.offerProductId, 'accepted');
+  }
+  // 되돌린 만큼 이전에 적립됐던 통계도 되돌린다
+  bumpAccountStats(req.requesterId, { transactions:-1, co2Saved:-2.3 });
+  bumpAccountStats(req.ownerId, { transactions:-1, co2Saved:-2.3 });
+  if(currentUser.isAdmin){ stats.transactions = Math.max(0, stats.transactions-1); stats.co2Saved = Math.max(0, +(stats.co2Saved - 2.3).toFixed(1)); updateProgress(); }
+  syncTradeChatsFor('admin');
+  renderChatList();
+  renderGrids();
+  const cc = chats.find(x=>x._tradeReqId===reqId);
+  if(cc){ currentChatId = cc.id; renderChatMessages(cc); }
+  renderChatExtra();
+  toast('거래 확정을 취소했어요 🛠️');
 }
 async function declineExchangeRequest(reqId){
   const req = exchangeRequests.find(r=>r.id===reqId);
