@@ -1527,6 +1527,7 @@ function openChatRoom(chatId){
     <div style="width:40px;height:40px;background:#C8E6C9;border-radius:8px;display:flex;align-items:center;justify-content:center">${c.product.emoji}</div>
     <div><div style="font-size:12px;font-weight:700">${c.product.name}</div><div style="font-size:10px;color:var(--gray)">${c.product.price} · ${c.product.status}</div></div>`;
   renderChatMessages(c);
+  renderChatExtra(); // ★ 핵심 수정: 여기서 호출이 빠져있어서 채팅방에 들어갈 때 버튼이 안 보이던 것
   nav('chatroom');
 }
 
