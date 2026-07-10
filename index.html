@@ -1761,16 +1761,26 @@ function mockLogin(provider){
 const ACCOUNTS_KEY = 'nono_accounts';
 let registeredAccounts = [];
 async function loadAccounts(){
+  let localAccounts = [];
+  try{ localAccounts = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]'); } catch(e){ localAccounts = []; }
   try{
     await waitForFirebase();
     const { db, collection, getDocs } = window.__fb;
     const snap = await getDocs(collection(db, 'accounts'));
-    registeredAccounts = [];
-    snap.forEach(docSnap=> registeredAccounts.push(docSnap.data()));
+    const cloudAccounts = [];
+    snap.forEach(docSnap=> cloudAccounts.push(docSnap.data()));
+    if(cloudAccounts.length === 0 && localAccounts.length > 0){
+      // ★ 핵심 수정: Firestore 컬렉션이 (아직 아무도 안 올려서) 비어있다고 해서 기존 로컬 계정을 지우면 안 됨.
+      // 예전부터 이 브라우저에 쌓여있던 계정 데이터를 한 번 클라우드로 올려서 마이그레이션한다.
+      registeredAccounts = localAccounts;
+      await saveAccounts();
+      console.info('기존 로컬 계정 '+localAccounts.length+'개를 클라우드로 마이그레이션했어요.');
+    } else {
+      registeredAccounts = cloudAccounts;
+    }
   } catch(e){
     console.warn('Firestore accounts load failed, falling back to local cache:', e);
-    try{ registeredAccounts = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]'); }
-    catch(e2){ registeredAccounts = []; }
+    registeredAccounts = localAccounts;
   }
 }
 async function saveAccounts(){
