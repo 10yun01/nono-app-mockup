@@ -2443,13 +2443,64 @@ async function cancelExchangeRequest(reqId){
   toast('교환 신청을 취소했어요');
 }
 function requestMoreInfo(reqId){
-  // 바로 결정하지 않고, 상대방에게 추가 정보를 물어보는 메시지를 입력창에 채워준다 (신청 상태는 대기중 유지)
+  const req = exchangeRequests.find(r=>r.id===reqId);
+  if(!req){ toast('요청 정보를 찾을 수 없어요'); return; }
+  const c = chats.find(x=>x._tradeReqId===reqId);
+  const iAmOwner = c ? c._iAmOwner : (req.ownerId === (currentUser.isAdmin?'admin':currentUser.email));
+  const otherPartyId = iAmOwner ? req.requesterId : req.ownerId;
+  const otherPartyName = iAmOwner ? req.requesterName : getSellerDisplay(req.ownerId).name;
+  const otherItems = products.filter(p=>p.seller===otherPartyId && p.id!==req.productId);
+
+  const listHtml = otherItems.length
+    ? otherItems.map(p=>`
+        <div class="list-row" onclick="sendMoreRequest('${req.id}', '${p.id.replace(/'/g,"\\'")}')">
+          <div class="icon" style="font-size:18px">${p.emoji}</div>
+          <div class="text"><div class="title">${p.name}</div><div class="sub">${p.size} · ${p.price}</div></div>
+          <div class="chev">></div>
+        </div>`).join('')
+    : `<p style="text-align:center;color:var(--gray);font-size:11px;padding:20px 0">${otherPartyName}님이 등록한 다른 상품이 없어요.</p>`;
+
+  const modalHtml = `
+    <div id="moreRequestModal" style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:flex-end" onclick="if(event.target===this)this.remove()">
+      <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:400px;margin:0 auto;padding:20px;max-height:80vh;overflow-y:auto">
+        <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px"></div>
+        <h2 style="font-size:15px;margin:0 0 4px">추가로 요청할 품목 선택</h2>
+        <p style="font-size:10.5px;color:var(--gray);margin-bottom:12px">${otherPartyName}님이 등록한 상품 중 함께 요청하고 싶은 걸 골라주세요.</p>
+        <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden">${listHtml}</div>
+        <div class="list-row" style="margin-top:10px;background:var(--bg);border-radius:12px;padding:12px" onclick="openMoreRequestFreeText('${req.id}')">
+          <div class="icon" style="font-size:18px">✏️</div>
+          <div class="text"><div class="title">그 외 품목 / 직접 요청하기</div><div class="sub">원하는 내용을 채팅으로 직접 입력해요</div></div>
+          <div class="chev">></div>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+function sendMoreRequest(reqId, productId){
+  const req = exchangeRequests.find(r=>r.id===reqId);
+  const p = products.find(x=>x.id===productId);
+  const modal = document.getElementById('moreRequestModal');
+  if(modal) modal.remove();
+  if(!req || !p) return;
+  const myId = currentUser.isAdmin ? 'admin' : currentUser.email;
+  const senderRole = req.ownerId === myId ? 'owner' : 'requester';
+  req.messages.push({sender: senderRole, text:`🔁 추가 요청: [${p.name}]도 함께 부탁드려요!`});
+  saveOneRequestToCloud(req);
+  syncTradeChatsFor(myId);
+  const cc = chats.find(x=>x._tradeReqId===reqId);
+  if(cc){ renderChatMessages(cc); renderChatExtra(); }
+  renderChatList();
+  toast('추가 품목 요청을 보냈어요');
+}
+function openMoreRequestFreeText(reqId){
+  const modal = document.getElementById('moreRequestModal');
+  if(modal) modal.remove();
   const input = document.getElementById('chatInput');
   if(input){
     input.value = '상품 상태나 교환 조건에 대해 조금 더 자세히 알려주실 수 있을까요? 😊';
     input.focus();
   }
-  toast('상대방에게 추가 정보를 요청해보세요. 전송 버튼을 눌러 보낼 수 있어요');
+  toast('원하는 내용을 입력한 뒤 전송 버튼을 눌러주세요');
 }
 async function acceptExchangeRequest(reqId){
   const req = exchangeRequests.find(r=>r.id===reqId);
