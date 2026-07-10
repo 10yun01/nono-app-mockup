@@ -2413,11 +2413,11 @@ function renderChatExtra(){
   const c = chats.find(x=>x.id===currentChatId);
   if(!c || !c._tradeReqId){ el.innerHTML=''; return; }
   const req = exchangeRequests.find(r=>r.id===c._tradeReqId);
-  if(!req || req.status!=='pending'){ el.innerHTML=''; return; }
+  if(!req || req.status!=='pending' || !c._iAmOwner){ el.innerHTML=''; return; } // 신청을 받은 쪽(주인)에게만 노출
   el.innerHTML = `
     <div class="card" style="background:var(--pale);margin-top:10px">
-      <b style="font-size:12px">📦 [${req.productName}] 교환 신청 진행중</b>
-      <div style="font-size:10px;color:var(--gray);margin-top:4px">${c._iAmOwner ? req.requesterName+'님의 신청을 수락하시겠어요?' : '상대방의 응답을 기다리는 중이에요.'}</div>
+      <b style="font-size:12px">📦 [${req.productName}] 교환 신청이 도착했어요</b>
+      <div style="font-size:10px;color:var(--gray);margin-top:4px">${req.requesterName}님의 신청을 수락하시겠어요?</div>
       <div class="btn-row" style="margin-top:10px;gap:6px">
         <button class="btn outline" style="font-size:10.5px;padding:8px 4px" onclick="declineExchangeRequest('${req.id}')">거절하기</button>
         <button class="btn outline" style="font-size:10.5px;padding:8px 4px;color:var(--green);border-color:var(--green)" onclick="requestMoreInfo('${req.id}')">더 요청하기</button>
