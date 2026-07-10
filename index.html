@@ -2363,14 +2363,24 @@ function renderChatExtra(){
       <div class="card" style="background:var(--pale);margin-top:10px">
         <b style="font-size:12px">📦 [${req.productName}] 교환 신청이 도착했어요</b>
         <div style="font-size:10px;color:var(--gray);margin-top:4px">${req.requesterName}님의 신청을 수락하시겠어요?</div>
-        <div class="btn-row" style="margin-top:10px">
-          <button class="btn outline" style="font-size:11px;padding:8px" onclick="declineExchangeRequest('${req.id}')">거절하기</button>
-          <button class="btn" style="font-size:11px;padding:8px" onclick="acceptExchangeRequest('${req.id}')">수락하기</button>
+        <div class="btn-row" style="margin-top:10px;gap:6px">
+          <button class="btn outline" style="font-size:10.5px;padding:8px 4px" onclick="declineExchangeRequest('${req.id}')">거절하기</button>
+          <button class="btn outline" style="font-size:10.5px;padding:8px 4px;color:var(--green);border-color:var(--green)" onclick="requestMoreInfo('${req.id}')">더 요청하기</button>
+          <button class="btn" style="font-size:10.5px;padding:8px 4px" onclick="acceptExchangeRequest('${req.id}')">수락하기</button>
         </div>
       </div>`;
   } else {
     el.innerHTML = '';
   }
+}
+function requestMoreInfo(reqId){
+  // 바로 결정하지 않고, 상대방에게 추가 정보를 물어보는 메시지를 입력창에 채워준다 (신청 상태는 대기중 유지)
+  const input = document.getElementById('chatInput');
+  if(input){
+    input.value = '상품 상태나 교환 조건에 대해 조금 더 자세히 알려주실 수 있을까요? 😊';
+    input.focus();
+  }
+  toast('상대방에게 추가 정보를 요청해보세요. 전송 버튼을 눌러 보낼 수 있어요');
 }
 async function acceptExchangeRequest(reqId){
   const req = exchangeRequests.find(r=>r.id===reqId);
