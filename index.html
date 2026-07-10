@@ -1187,14 +1187,16 @@ let currentChatId = null;
 
 function productCard(p, showHeart){
   const firstPhoto = p.photo || (p.photos && p.photos[0]) || null;
-  return `<div class="product-card" onclick="openProduct('${p.id}')">
-    <div class="thumb" style="background:#C8E6C9;position:relative">
+  const isSold = p.status === 'traded';
+  return `<div class="product-card" ${isSold?'':`onclick="openProduct('${p.id}')"`} style="${isSold?'cursor:default':''}">
+    <div class="thumb" style="background:#C8E6C9;position:relative;${isSold?'opacity:.45':''}">
       ${p.emoji}
       ${firstPhoto?`<img src="${firstPhoto}" alt="${p.name}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.remove()">`:''}
-      <div class="heart" style="color:${p.favorited?'var(--red)':'#bbb'}" onclick="event.stopPropagation();toggleFavorite('${p.id}')">${p.favorited?'♥':'♡'}</div>
+      ${isSold?'':`<div class="heart" style="color:${p.favorited?'var(--red)':'#bbb'}" onclick="event.stopPropagation();toggleFavorite('${p.id}')">${p.favorited?'♥':'♡'}</div>`}
+      ${isSold?`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="background:rgba(0,0,0,.55);color:#fff;font-size:10px;font-weight:700;padding:5px 12px;border-radius:8px;letter-spacing:.5px">거래 완료</span></div>`:''}
     </div>
-    <div class="name">${p.name.length>14?p.name.slice(0,14)+'…':p.name}</div>
-    <div class="price">${p.price}</div>
+    <div class="name" style="${isSold?'color:var(--gray)':''}">${p.name.length>14?p.name.slice(0,14)+'…':p.name}</div>
+    <div class="price" style="${isSold?'color:var(--gray)':''}">${p.price}</div>
   </div>`;
 }
 
@@ -1535,7 +1537,7 @@ function renderChatMessages(c){
   document.getElementById('chatMessages').innerHTML = c.messages.map(m=>{
     if(m.from==='system'){
       // 교환 관련 시스템 메시지는 상품 썸네일 + 상태 + "거래 정보 확인" 버튼이 있는 카드로 보여준다
-      const isTradeMsg = c._tradeReqId && (m.text.includes('교환 신청을 보냈어요') || m.text.includes('수락했어요') || m.text.includes('거절됐어요'));
+      const isTradeMsg = c._tradeReqId && (m.text.includes('교환 신청을 보냈어요') || m.text.includes('수락했어요') || m.text.includes('거절됐어요') || m.text.includes('최종 확정됐어요'));
       if(isTradeMsg){
         const photo = c.product.photo;
         return `<div class="msg-row"><div class="bubble" style="background:#fff;border:1px solid var(--border);padding:12px;max-width:82%">
@@ -1545,7 +1547,7 @@ function renderChatMessages(c){
             </div>
             <div style="flex:1;min-width:0">
               <div style="font-weight:700;font-size:12px">${c.product.name}</div>
-              <div style="font-size:10px;color:var(--gray);margin-top:2px">${m.text.replace(/^🔔 |^🎉 |^😥 /,'').replace(/\[.*?\]\s*/,'')}</div>
+              <div style="font-size:10px;color:var(--gray);margin-top:2px">${m.text.replace(/^🔔 |^🎉 |^😥 |^✅ /,'').replace(/\[.*?\]\s*/,'')}</div>
             </div>
           </div>
           <button style="width:100%;margin-top:10px;background:var(--pale);color:var(--green);border:none;border-radius:10px;padding:9px;font-size:11px;font-weight:700;cursor:pointer" onclick="openTradeDetail('${c._tradeReqId}')">거래 정보 확인</button>
@@ -1566,9 +1568,9 @@ function openTradeDetail(reqId){
   const fmt = d => `${d.getMonth()+1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
   const steps = [
     { label:'교환 신청', done:true, time:fmt(created) },
-    { label:'상대방 확인 중', done: req.status!=='pending' || true, time: req.status==='pending' ? '진행중' : fmt(created) },
-    { label: req.status==='declined' ? '거절됨' : '수락 완료', done: req.status!=='pending', time: req.status!=='pending' ? '완료' : '대기중' },
-    { label:'거래 완료', done: req.status==='accepted', time: req.status==='accepted' ? '완료' : '대기중' },
+    { label:'상대방 확인 중', done: true, time: req.status==='pending' ? '진행중' : fmt(created) },
+    { label: req.status==='declined' ? '거절됨' : '수락 완료', done: req.status==='accepted' || req.status==='completed', time: (req.status==='accepted'||req.status==='completed') ? '완료' : '대기중' },
+    { label:'교환 확정 (거래 완료)', done: req.status==='completed', time: req.status==='completed' ? '완료' : (req.status==='accepted' ? '확정 대기중' : '대기중') },
   ];
   const stepsHtml = steps.map(s=>`
     <div style="display:flex;align-items:center;gap:10px;padding:9px 0">
@@ -1602,7 +1604,7 @@ function openTradeDetail(reqId){
           <div style="font-size:12px;font-weight:700;margin-bottom:8px">👤 신청 정보</div>
           ${row('신청자', req.requesterName)}
           ${row('신청일시', fmt(created))}
-          ${row('진행 상태', req.status==='pending'?'대기중':req.status==='accepted'?'거래 완료':'거절됨')}
+          ${row('진행 상태', req.status==='pending'?'대기중':req.status==='accepted'?'수락됨 · 확정 대기':req.status==='completed'?'거래 완료':'거절됨')}
         </div>
 
         <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px">
@@ -2460,7 +2462,7 @@ function syncTradeChatsFor(myId){
     const iAmOwner = r.ownerId === myId;
     const otherId = iAmOwner ? r.requesterId : r.ownerId;
     const otherDisplay = iAmOwner ? {name:r.requesterName, avatar:'🙂'} : getSellerDisplay(r.ownerId);
-    const statusLabel = r.status==='pending' ? '교환 신청중' : r.status==='accepted' ? '교환 완료' : '거절됨';
+    const statusLabel = r.status==='pending' ? '교환 신청중' : r.status==='accepted' ? '수락됨 · 확정 대기' : r.status==='completed' ? '교환 완료' : '거절됨';
     const msgs = r.messages.map(m=>{
       if(m.sender==='system') return {from:'system', text:m.text};
       const mine = iAmOwner ? m.sender==='owner' : m.sender==='requester';
@@ -2480,7 +2482,18 @@ function renderChatExtra(){
   const c = chats.find(x=>x.id===currentChatId);
   if(!c || !c._tradeReqId){ el.innerHTML=''; return; }
   const req = exchangeRequests.find(r=>r.id===c._tradeReqId);
-  if(!req || req.status!=='pending' || !c._iAmOwner){ el.innerHTML=''; return; } // 신청을 받은 쪽(주인)에게만 노출
+  if(!req){ el.innerHTML=''; return; }
+  if(req.status==='accepted'){
+    // 수락은 됐지만 아직 최종 확정 전 — 실제 물건을 주고받은 뒤 양쪽 누구나 확정할 수 있다
+    el.innerHTML = `
+      <div class="card" style="background:var(--pale);margin-top:10px">
+        <b style="font-size:12px">🤝 [${req.productName}] 수락됨 · 확정 대기중</b>
+        <div style="font-size:10px;color:var(--gray);margin-top:4px">실제로 물건을 주고받으셨다면 아래 버튼으로 거래를 확정해주세요.</div>
+        <button class="btn" style="margin-top:10px;font-size:11px;padding:9px" onclick="confirmExchange('${req.id}')">✅ 교환 확정하기</button>
+      </div>`;
+    return;
+  }
+  if(req.status!=='pending' || !c._iAmOwner){ el.innerHTML=''; return; } // 신청을 받은 쪽(주인)에게만 노출
   el.innerHTML = `
     <div class="card" style="background:var(--pale);margin-top:10px">
       <b style="font-size:12px">📦 [${req.productName}] 교환 신청이 도착했어요</b>
@@ -2572,8 +2585,25 @@ function openMoreRequestFreeText(reqId){
 async function acceptExchangeRequest(reqId){
   const req = exchangeRequests.find(r=>r.id===reqId);
   if(!req || req.status!=='pending') return;
-  req.status = 'accepted';
-  req.messages.push({sender:'system', text:`🎉 [${req.productName}] 교환 신청을 수락했어요! 거래가 완료됐어요.`});
+  req.status = 'accepted'; // 아직 최종 완료가 아니라 "수락됨" 중간 단계 — 양쪽이 교환 확정을 눌러야 최종 완료됨
+  req.messages.push({sender:'system', text:`✅ [${req.productName}] 교환 신청을 수락했어요! 실제로 물건을 주고받은 뒤 "교환 확정하기"를 눌러 마무리해주세요.`});
+  await saveOneRequestToCloud(req);
+  const liveProduct = products.find(x=>x.id===req.productId);
+  if(liveProduct) liveProduct.status = 'accepted'; // 아직 거래완료(traded)는 아님 — 확정 전까지는 목록에 정상 노출
+  await updateProductStatusInCloud(req.productId, 'accepted');
+  const myId = currentUser ? (currentUser.isAdmin?'admin':currentUser.email) : null;
+  syncTradeChatsFor(myId);
+  renderChatList();
+  const cc = chats.find(x=>x._tradeReqId===reqId);
+  if(cc){ currentChatId = cc.id; renderChatMessages(cc); }
+  renderChatExtra();
+  toast('교환을 수락했어요 — 물건 전달 후 "교환 확정하기"를 눌러주세요');
+}
+async function confirmExchange(reqId){
+  const req = exchangeRequests.find(r=>r.id===reqId);
+  if(!req || req.status!=='accepted') return;
+  req.status = 'completed';
+  req.messages.push({sender:'system', text:`🎉 [${req.productName}] 교환이 최종 확정됐어요! 거래가 완료됐습니다.`});
   await saveOneRequestToCloud(req);
   const liveProduct = products.find(x=>x.id===req.productId);
   if(liveProduct) liveProduct.status = 'traded';
@@ -2583,11 +2613,12 @@ async function acceptExchangeRequest(reqId){
   const myId = currentUser ? (currentUser.isAdmin?'admin':currentUser.email) : null;
   syncTradeChatsFor(myId);
   renderChatList();
+  renderGrids(); // 상품 목록에 반투명 "거래 완료" 표시 반영
   const cc = chats.find(x=>x._tradeReqId===reqId);
   if(cc){ currentChatId = cc.id; renderChatMessages(cc); }
   renderChatExtra();
   if(currentUser) saveAccountData(currentUser.email);
-  toast('교환을 수락했어요 🎉');
+  toast('교환이 확정됐어요 🎉');
 }
 async function declineExchangeRequest(reqId){
   const req = exchangeRequests.find(r=>r.id===reqId);
